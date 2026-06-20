@@ -66,8 +66,7 @@ radare2
 gdb
 
 # ---- Recon / Active Directory ----------------------------------------------
-bloodhound      # hunter
-neo4j           # BloodHound's graph database backend
+bloodhound      # hunter (pulls its own DB backend; see README for legacy neo4j)
 
 # ---- Operator quality-of-life staples --------------------------------------
 tmux

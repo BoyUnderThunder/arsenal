@@ -121,6 +121,11 @@ Example: `sniper -sV 10.0.0.0/24` runs `nmap -sV 10.0.0.0/24`.
 The registry (`/usr/local/share/arsenal/registry`) drives both the launchers
 and the `arsenal` command, so they never drift.
 
+> **BloodHound DB:** the `bloodhound` package is included; modern BloodHound CE
+> brings its own backend. If you run the legacy edition that needs a Neo4j
+> database, install one in the live session (`pacman -S` from the AUR/your
+> mirror) — Arsenal intentionally doesn't ship a heavyweight DB by default.
+
 ---
 
 ## The Fortress (hardening)
