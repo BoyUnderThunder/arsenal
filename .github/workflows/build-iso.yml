@@ -1,0 +1,95 @@
+name: build-arsenal-iso
+
+# Builds the Arsenal ISO where the network is open (GitHub-hosted runner),
+# in a privileged archlinux container, then boot-tests it in QEMU and uploads
+# the ISO as an artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      flavor:
+        description: "Package flavor"
+        type: choice
+        options: [full, lean]
+        default: full
+  push:
+    branches: ["**"]
+    paths:
+      - "profile/**"
+      - "build.sh"
+      - "tools/**"
+      - ".github/workflows/build-iso.yml"
+
+concurrency:
+  group: build-iso-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      FLAVOR: ${{ github.event.inputs.flavor || 'full' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+                      /opt/hostedtoolcache /usr/local/.ghcup || true
+          sudo docker image prune -af || true
+          df -h /
+
+      - name: Prepare work dirs on the large volume
+        run: |
+          sudo mkdir -p /mnt/work /mnt/pkgcache /mnt/out
+          sudo chmod 0777 /mnt/work /mnt/pkgcache /mnt/out
+
+      - name: Build ISO in a privileged Arch container
+        run: |
+          docker run --privileged --rm \
+            -v "$PWD":/repo \
+            -v /mnt/work:/work \
+            -v /mnt/pkgcache:/var/cache/pacman/pkg \
+            -v /mnt/out:/out \
+            -e ARSENAL_WORK=/work \
+            -e ARSENAL_OUT=/out \
+            -e ARSENAL_SERIAL=1 \
+            -e ARSENAL_PROFILE="${FLAVOR}" \
+            archlinux:latest \
+            bash -c 'set -e; pacman-key --init; cd /repo && ./build.sh'
+
+      - name: Show artifacts
+        run: ls -lh /mnt/out
+
+      - name: Install QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 ovmf
+
+      - name: Boot test (QEMU)
+        run: |
+          ISO="$(ls /mnt/out/*.iso | head -n1)"
+          chmod +x tools/smoke-test.sh
+          # KVM may be available on the runner; smoke-test auto-detects it.
+          sudo --preserve-env=SMOKE_MEM tools/smoke-test.sh "$ISO" 1500
+
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: arsenal-iso-${{ env.FLAVOR }}
+          path: /mnt/out/*.iso
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            /mnt/work/tmp/iso/
+            /tmp/arsenal-serial*.log
+          retention-days: 5
+          if-no-files-found: ignore

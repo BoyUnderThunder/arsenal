@@ -1,0 +1,10 @@
+# Build artifacts
+/work/
+/out/
+*.iso
+*.iso.sha256
+*.iso.sig
+
+# Editor / OS cruft
+*.swp
+.DS_Store

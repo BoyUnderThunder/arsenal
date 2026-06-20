@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# arsenal — print the Arsenal armory registry (weapon → real tool → what it does)
+set -euo pipefail
+
+REG="${ARSENAL_REGISTRY:-/usr/local/share/arsenal/registry}"
+
+R=$'\033[1;31m'   # arsenal red
+C=$'\033[36m'     # tool cyan
+B=$'\033[1m'      # bold
+D=$'\033[2m'      # dim
+N=$'\033[0m'      # reset
+
+cat <<BANNER
+${R}
+   █████╗ ██████╗ ███████╗███████╗███╗   ██╗ █████╗ ██╗
+  ██╔══██╗██╔══██╗██╔════╝██╔════╝████╗  ██║██╔══██╗██║
+  ███████║██████╔╝███████╗█████╗  ██╔██╗ ██║███████║██║
+  ██╔══██║██╔══██╗╚════██║██╔══╝  ██║╚██╗██║██╔══██║██║
+  ██║  ██║██║  ██║███████║███████╗██║ ╚████║██║  ██║███████╗
+  ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝╚═╝  ╚═╝╚══════╝
+${N}${D}        white-hat security OS · the armory${N}
+BANNER
+
+if [[ ! -r "$REG" ]]; then
+    echo "arsenal: registry not found at $REG" >&2
+    exit 1
+fi
+
+printf '\n  %sCall a weapon by name to launch its tool — arguments pass straight through.%s\n\n' "$D" "$N"
+printf '  %s%-14s %-14s %-17s %s%s\n' "$B" "WEAPON" "TOOL" "CATEGORY" "WHAT IT DOES" "$N"
+printf '  %s' "$D"; printf '─%.0s' $(seq 1 74); printf '%s\n' "$N"
+
+while IFS='|' read -r w bin cat desc; do
+    case "$w" in ''|\#*) continue ;; esac
+    if command -v "$bin" >/dev/null 2>&1; then dot="${R}●${N}"; else dot="${D}○${N}"; fi
+    printf '  %b %s%-12s%s %s%-14s%s %-17s %s\n' "$dot" "$R" "$w" "$N" "$C" "$bin" "$N" "$cat" "$desc"
+done < "$REG"
+
+printf '\n  %s● installed   ○ not on this image%s\n' "$D" "$N"
+printf '  %sExamples:%s %ssniper%s -sV 10.0.0.0/24   ·   %sbazooka%s   ·   %soverseer%s\n\n' \
+    "$D" "$N" "$R" "$N" "$R" "$N" "$R" "$N"

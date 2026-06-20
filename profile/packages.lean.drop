@@ -1,0 +1,22 @@
+# Packages removed when building the "lean" flavor (ARSENAL_PROFILE=lean).
+# Drops the heavy GUI / Java / database tooling so a smoke-test ISO builds and
+# boots fast in CI. The "full" flavor keeps everything.
+xorg-server
+xorg-xinit
+xorg-xrandr
+xfce4
+xfce4-terminal
+arc-gtk-theme
+papirus-icon-theme
+gvfs
+firefox
+mesa
+xf86-video-vesa
+spice-vdagent
+jre-openjdk
+metasploit
+burpsuite
+ghidra
+autopsy
+bloodhound
+neo4j

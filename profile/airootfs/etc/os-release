@@ -1,0 +1,12 @@
+NAME="Arsenal"
+PRETTY_NAME="Arsenal — White-Hat Security OS"
+ID=arsenal
+ID_LIKE=arch
+BUILD_ID=rolling
+VERSION_ID="rolling"
+ANSI_COLOR="1;31"
+LOGO=arsenal
+HOME_URL="https://github.com/BoyUnderThunder/arsenal"
+DOCUMENTATION_URL="https://github.com/BoyUnderThunder/arsenal"
+SUPPORT_URL="https://github.com/BoyUnderThunder/arsenal"
+BUG_REPORT_URL="https://github.com/BoyUnderThunder/arsenal/issues"

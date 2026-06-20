@@ -1,0 +1,88 @@
+# =============================================================================
+#  Arsenal — package additions (appended to archiso's releng base list)
+# =============================================================================
+#  Package names are resolved at build time against [core]/[extra] and the
+#  [blackarch] repository. If a name ever moves between repos or is renamed,
+#  mkarchiso will fail loudly on that line — fix it here and rebuild.
+# -----------------------------------------------------------------------------
+
+# ---- The Fortress: hardening ------------------------------------------------
+linux-hardened
+apparmor
+audit
+nftables
+cryptsetup
+lvm2
+gptfdisk
+
+# ---- Desktop: clean dark XFCE ----------------------------------------------
+xorg-server
+xorg-xinit
+xorg-xrandr
+xfce4
+xfce4-terminal
+arc-gtk-theme
+papirus-icon-theme
+gvfs
+firefox
+# fonts
+noto-fonts
+ttf-dejavu
+ttf-liberation
+ttf-jetbrains-mono
+# runs nicely inside VMs (QEMU/SPICE)
+mesa
+xf86-video-vesa
+qemu-guest-agent
+spice-vdagent
+
+# ---- Shared runtimes the toolkit needs -------------------------------------
+jre-openjdk
+python
+python-pip
+
+# ---- Red team ---------------------------------------------------------------
+nmap            # sniper
+metasploit      # bazooka
+burpsuite       # tower
+hydra           # tank
+hashcat         # breaker
+sqlmap          # masterkey
+aircrack-ng     # agent
+
+# ---- Blue team / monitoring -------------------------------------------------
+wireshark-qt    # overseer
+suricata
+zeek
+
+# ---- Forensics --------------------------------------------------------------
+autopsy         # interrogator
+sleuthkit
+volatility3     # detective (binary: vol)
+
+# ---- Reverse engineering ----------------------------------------------------
+ghidra          # scalpel
+radare2
+gdb
+
+# ---- Recon / Active Directory ----------------------------------------------
+bloodhound      # hunter
+neo4j           # BloodHound's graph database backend
+
+# ---- Operator quality-of-life staples --------------------------------------
+tmux
+vim
+git
+wget
+jq
+htop
+tcpdump
+whois
+bind            # dig / nslookup
+socat
+proxychains-ng
+john
+openssh
+man-db
+bash-completion
+terminus-font

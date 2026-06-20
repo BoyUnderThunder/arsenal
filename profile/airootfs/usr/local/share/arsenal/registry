@@ -1,0 +1,15 @@
+# Arsenal weapon registry  —  weapon|binary|category|description
+# This single file drives both the /etc/profile.d armory launchers and the
+# `arsenal` command. Add a line here to register a new weapon.
+sniper|nmap|Recon|Network mapper & port/service scanner
+bazooka|msfconsole|Exploitation|Metasploit Framework console
+tower|burpsuite|Web|Burp Suite — web proxy & scanner
+tank|hydra|Passwords|THC Hydra — online login brute-forcer
+breaker|hashcat|Passwords|hashcat — GPU/CPU hash cracker
+masterkey|sqlmap|Web|sqlmap — automatic SQL injection
+agent|aircrack-ng|Wireless|aircrack-ng — Wi-Fi 802.11 auditing
+overseer|wireshark|Monitor|Wireshark — network protocol analyzer
+hunter|bloodhound|Active Directory|BloodHound — AD attack-path mapping
+scalpel|ghidra|Reversing|Ghidra — software reverse engineering
+detective|vol|Forensics|Volatility 3 — memory forensics
+interrogator|autopsy|Forensics|Autopsy — digital forensics platform

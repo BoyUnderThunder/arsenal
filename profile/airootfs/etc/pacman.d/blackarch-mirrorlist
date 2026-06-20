@@ -1,0 +1,8 @@
+# Arsenal — BlackArch mirrorlist for the *booted* system, so you can install
+# more tools with `pacman -S <pkg>` from within Arsenal.
+# (The build host gets its own mirrorlist from strap.sh.)
+Server = https://blackarch.org/blackarch/$repo/os/$arch
+Server = https://mirror.cyberbits.eu/blackarch/$repo/os/$arch
+Server = https://ftp.halifax.rwth-aachen.de/blackarch/$repo/os/$arch
+Server = https://mirrors.dotsrc.org/blackarch/$repo/os/$arch
+Server = https://miknet.net/mirror/blackarch/$repo/os/$arch

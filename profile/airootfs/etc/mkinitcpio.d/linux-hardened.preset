@@ -1,0 +1,8 @@
+# mkinitcpio preset for the 'linux-hardened' package on Arsenal live media.
+# Mirrors archiso's stock linux.preset but targets the hardened kernel.
+
+PRESETS=('archiso')
+
+ALL_kver='/boot/vmlinuz-linux-hardened'
+
+archiso_image="/boot/initramfs-linux-hardened.img"
