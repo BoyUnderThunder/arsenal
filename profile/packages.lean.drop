@@ -13,7 +13,7 @@ firefox
 mesa
 xf86-video-vesa
 spice-vdagent
-jre-openjdk
+jdk-openjdk
 metasploit
 burpsuite
 ghidra

@@ -37,7 +37,9 @@ qemu-guest-agent
 spice-vdagent
 
 # ---- Shared runtimes the toolkit needs -------------------------------------
-jre-openjdk
+# Full JDK (not jre-openjdk): satisfies both java-runtime and java-environment
+# for ghidra/burpsuite/autopsy, avoiding a jre/jdk same-version conflict.
+jdk-openjdk
 python
 python-pip
 
