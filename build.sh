@@ -70,7 +70,9 @@ c_log "Merging package list (flavor: ${FLAVOR})…"
 {
     echo ''
     echo '# ===== Arsenal additions ====='
-    grep -vE '^\s*#|^\s*$' "${OVERLAY}/packages.x86_64"
+    # Strip inline "# comment" docs, trailing whitespace, and blank lines so the
+    # profile's packages.x86_64 contains bare package names only.
+    sed -e 's/#.*//' -e 's/[[:space:]]\+$//' -e '/^[[:space:]]*$/d' "${OVERLAY}/packages.x86_64"
 } >> "${PROFILE}/packages.x86_64"
 
 if [[ "${FLAVOR}" == "lean" ]]; then
@@ -140,7 +142,7 @@ fi
 # 8. Validate every package name resolves (fast — before the expensive build)
 # -----------------------------------------------------------------------------
 c_log "Validating that every package resolves against the repos…"
-mapfile -t PKGS < <(grep -vE '^\s*#|^\s*$' "${PROFILE}/packages.x86_64")
+mapfile -t PKGS < <(sed -e 's/#.*//' -e 's/[[:space:]]\+$//' -e '/^[[:space:]]*$/d' "${PROFILE}/packages.x86_64")
 if ! pacman -Sp --noconfirm "${PKGS[@]}" >/dev/null 2>/tmp/arsenal-resolve.err; then
     c_log "Package resolution failed — unresolved targets:"
     grep -iE 'target not found|could not find' /tmp/arsenal-resolve.err >&2 || cat /tmp/arsenal-resolve.err >&2

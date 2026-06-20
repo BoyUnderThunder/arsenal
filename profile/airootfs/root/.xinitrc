@@ -1,6 +1,6 @@
 #!/bin/sh
 # Arsenal X session — clean dark XFCE.
-export GTK_THEME=Arc-Dark
+export GTK_THEME=Adwaita-dark
 export QT_STYLE_OVERRIDE=Adwaita-Dark
 export XCURSOR_THEME=Adwaita
 

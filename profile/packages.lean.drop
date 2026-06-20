@@ -6,7 +6,7 @@ xorg-xinit
 xorg-xrandr
 xfce4
 xfce4-terminal
-arc-gtk-theme
+gnome-themes-extra
 papirus-icon-theme
 gvfs
 firefox
