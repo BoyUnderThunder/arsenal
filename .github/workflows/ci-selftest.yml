@@ -1,0 +1,10 @@
+name: ci-selftest
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+jobs:
+  hello:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "GitHub Actions can run on this repo."
