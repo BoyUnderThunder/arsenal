@@ -19,8 +19,13 @@ command -v qemu-system-x86_64 >/dev/null || { echo "smoke-test: qemu-system-x86_
 
 LOG="$(mktemp /tmp/arsenal-serial.XXXXXX.log)"
 MEM="${SMOKE_MEM:-4096}"
-# Markers that prove we booted to the Arsenal live environment.
-MARKERS=('root@arsenal' 'white-hat security OS' 'Arsenal')
+# Markers that only appear AFTER the OS has booted to its autologin shell —
+# NOT bootloader/branding text (the syslinux menu echoes "Arsenal" to serial).
+#   root@arsenal      -> interactive root shell prompt (hostname = arsenal)
+#   BlackArch-powered -> unique line from /etc/motd, printed on login
+MARKERS=('root@arsenal' 'BlackArch-powered')
+# Boot-failure signatures: fail fast instead of waiting out the whole timeout.
+FAIL_RE='Kernel panic|Unable to mount root|Attempted to kill init|Failed to start Login|emergency mode|You are in emergency'
 
 ACCEL=(-accel tcg)
 if [[ -w /dev/kvm ]]; then ACCEL=(-enable-kvm -cpu host); echo "smoke-test: using KVM"; else echo "smoke-test: using TCG (slow)"; fi
@@ -45,9 +50,13 @@ while [[ $(date +%s) -lt ${deadline} ]]; do
     if ! kill -0 "${QPID}" 2>/dev/null; then
         echo "smoke-test: QEMU exited early."; break
     fi
+    if grep -qaEi "${FAIL_RE}" "${LOG}"; then
+        echo "smoke-test: boot-failure signature detected on serial console."
+        break
+    fi
     for m in "${MARKERS[@]}"; do
         if grep -qaF "${m}" "${LOG}"; then
-            echo "smoke-test: matched marker '${m}' — boot succeeded."
+            echo "smoke-test: matched post-boot marker '${m}' — system reached its shell."
             ok=1; break 2
         fi
     done
