@@ -53,14 +53,17 @@ docker run --privileged --rm -v "$PWD":/repo -e ARSENAL_SERIAL=1 \
 ### Boot test
 
 ```bash
-tools/smoke-test.sh out/arsenal-*.iso          # headless, serial-console check
-# or interactively:
+sudo tools/smoke-test.sh out/arsenal-*.iso     # headless boot check
+# or interactively (with a display):
 qemu-system-x86_64 -m 4096 -smp 2 -cdrom out/arsenal-*.iso -boot d
 ```
 
-`smoke-test.sh` boots the ISO in QEMU (KVM if available, else TCG) and waits
-for an autologin shell on the serial console. Build with `ARSENAL_SERIAL=1`
-for the serial console the smoke test reads (the CI workflow sets this).
+`smoke-test.sh` loop-mounts the ISO, extracts `vmlinuz-linux-hardened` + the
+initramfs, and boots them directly in QEMU (KVM if available, else TCG) with a
+forced serial console, attaching the ISO as a CD so the archiso initramfs finds
+the squashfs by label. It passes only when the system reaches its autologin
+`root@arsenal` shell (verified markers, not bootloader branding). Needs root to
+mount the ISO.
 
 ---
 
