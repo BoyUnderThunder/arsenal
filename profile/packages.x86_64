@@ -70,6 +70,16 @@ gdb
 # ---- Recon / Active Directory ----------------------------------------------
 bloodhound      # hunter (pulls its own DB backend; see README for legacy neo4j)
 
+# ---- Extended offensive toolkit (added on request) -------------------------
+impacket        # AD/SMB/Kerberos python toolkit (secretsdump, ntlmrelayx, ...)
+netexec         # nxc — mass SMB/WinRM/LDAP auth & enumeration (crackmapexec fork)
+responder       # LLMNR/NBT-NS/mDNS poisoner — capture NetNTLM hashes
+ffuf            # fast web fuzzer (content / vhost / parameter)
+feroxbuster     # recursive web content discovery
+gobuster        # directory / DNS / vhost brute-forcer
+nikto           # web server misconfiguration & vuln scanner
+exploitdb       # searchsploit — offline exploit database
+
 # ---- Operator quality-of-life staples --------------------------------------
 tmux
 vim
