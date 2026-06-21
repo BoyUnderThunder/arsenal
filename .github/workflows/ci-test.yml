@@ -1,0 +1,47 @@
+name: ci-test
+
+# Fast checks for the Arsenal platform CLI: unit tests + shell linting.
+# No ISO build here — build-iso.yml still proves the image builds and boots.
+
+on:
+  push:
+    paths:
+      - "cli/**"
+      - "tools/**"
+      - "build.sh"
+      - "profile/airootfs/usr/local/bin/arsenal"
+      - ".github/workflows/ci-test.yml"
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Unit tests (stdlib unittest)
+        run: |
+          cd cli
+          python -m unittest discover -s tests -t . -v
+
+      - name: CLI smoke
+        run: |
+          cd cli
+          python -m arsenal_cli --version
+          ARSENAL_NO_COLOR=1 python -m arsenal_cli doctor || true   # exit 1 off-Arsenal is fine
+
+      - name: ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends shellcheck
+          shellcheck -S warning \
+            profile/airootfs/usr/local/bin/arsenal \
+            tools/smoke-test.sh \
+            build.sh
