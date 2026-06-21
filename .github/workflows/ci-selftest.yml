@@ -1,0 +1,12 @@
+name: ci-selftest
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+jobs:
+  hello:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (tests whether external actions are allowed)
+        uses: actions/checkout@v4
+      - run: echo "Actions + external actions (checkout) work on this repo."

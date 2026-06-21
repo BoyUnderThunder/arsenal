@@ -21,7 +21,7 @@ xorg-xinit
 xorg-xrandr
 xfce4
 xfce4-terminal
-arc-gtk-theme
+gnome-themes-extra
 papirus-icon-theme
 gvfs
 firefox
@@ -37,7 +37,9 @@ qemu-guest-agent
 spice-vdagent
 
 # ---- Shared runtimes the toolkit needs -------------------------------------
-jre-openjdk
+# Full JDK (not jre-openjdk): satisfies both java-runtime and java-environment
+# for ghidra/burpsuite/autopsy, avoiding a jre/jdk same-version conflict.
+jdk-openjdk
 python
 python-pip
 
@@ -66,8 +68,7 @@ radare2
 gdb
 
 # ---- Recon / Active Directory ----------------------------------------------
-bloodhound      # hunter
-neo4j           # BloodHound's graph database backend
+bloodhound      # hunter (pulls its own DB backend; see README for legacy neo4j)
 
 # ---- Operator quality-of-life staples --------------------------------------
 tmux

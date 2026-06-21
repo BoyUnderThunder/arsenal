@@ -1,0 +1,82 @@
+name: boot-test-arsenal
+
+# Honest boot verification: download an already-built arsenal-iso artifact and
+# boot it in QEMU using the corrected smoke test (which waits for a post-boot
+# shell marker, not bootloader branding). Lets us verify boot without a rebuild.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Run ID that produced the arsenal-iso artifact"
+        required: true
+        default: "27883240346"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  boot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare disk
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache || true
+          sudo mkdir -p /mnt/iso && sudo chmod 0777 /mnt/iso
+          df -h /
+
+      - name: Download ISO artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: arsenal-iso
+          path: /mnt/iso
+          run-id: ${{ github.event.inputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Install QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-system-x86
+
+      - name: Boot test (direct kernel, forced serial)
+        run: |
+          set -x
+          ISO="$(find /mnt/iso -name '*.iso' | head -n1)"
+          LABEL="$(sudo blkid -o value -s LABEL "${ISO}")"
+          echo "ISO=${ISO}  LABEL=${LABEL}"; ls -lh "${ISO}"
+          sudo mkdir -p /mnt/cd && sudo mount -o loop,ro "${ISO}" /mnt/cd
+          echo "=== boot files on ISO ==="
+          sudo find /mnt/cd \( -name 'vmlinuz*' -o -name 'initramfs*' -o -name '*-ucode.img' \) | sort
+          KDIR=/tmp/kboot; mkdir -p "${KDIR}"
+          VMLINUZ="$(sudo find /mnt/cd -name 'vmlinuz-linux-hardened' | head -1)"
+          INITRD="$(sudo find /mnt/cd -name 'initramfs-linux-hardened.img' | head -1)"
+          UCODE="$(sudo find /mnt/cd -name '*-ucode.img' | sort | tr '\n' ' ')"
+          echo "VMLINUZ=${VMLINUZ}"; echo "INITRD=${INITRD}"; echo "UCODE=${UCODE}"
+          sudo cp "${VMLINUZ}" "${KDIR}/vmlinuz"
+          sudo sh -c "cat ${UCODE} '${INITRD}' > '${KDIR}/initrd.img'"
+          sudo chmod a+r "${KDIR}"/*
+          sudo umount /mnt/cd
+          LOG=/tmp/serial.log
+          echo "=== booting kernel directly with console=ttyS0 ==="
+          sudo qemu-system-x86_64 -enable-kvm -cpu host -m 4096 -smp 2 \
+            -kernel "${KDIR}/vmlinuz" -initrd "${KDIR}/initrd.img" \
+            -append "archisobasedir=arsenal archisolabel=${LABEL} console=ttyS0,115200 cow_spacesize=1G" \
+            -cdrom "${ISO}" -display none -serial stdio -monitor none -no-reboot > "${LOG}" 2>&1 &
+          QPID=$!
+          ok=0
+          for i in $(seq 1 84); do
+            kill -0 "${QPID}" 2>/dev/null || { echo "qemu exited early"; break; }
+            if grep -qaE 'root@arsenal|BlackArch-powered' "${LOG}"; then ok=1; echo ">>> POST-BOOT MARKER FOUND"; break; fi
+            if grep -qaiE 'Kernel panic|Unable to mount root|Attempted to kill init|Cannot open root|Entering emergency|You are in emergency' "${LOG}"; then echo ">>> BOOT FAILURE SIGNATURE"; break; fi
+            sleep 5
+          done
+          sudo kill "${QPID}" 2>/dev/null || true
+          echo "=== serial log (tail 120) ==="
+          tail -120 "${LOG}" | tr -d '\000' || true
+          echo "============================="
+          if [ "${ok}" -eq 1 ]; then echo "RESULT: BOOT OK"; else echo "RESULT: BOOT FAILED"; exit 1; fi

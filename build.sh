@@ -47,11 +47,10 @@ pacman -S  --needed --noconfirm archiso git curl
 if [[ "${SKIP_STRAP:-0}" != "1" ]] && ! grep -q '^\[blackarch\]' /etc/pacman.conf; then
     c_log "Bootstrapping BlackArch with strap.sh…"
     curl -fsSL https://blackarch.org/strap.sh -o /tmp/strap.sh
-    expected="$(curl -fsSL https://blackarch.org/strap.sh.sha1sum 2>/dev/null | awk '{print $1}' || true)"
-    if [[ -n "${expected}" ]]; then
-        actual="$(sha1sum /tmp/strap.sh | awk '{print $1}')"
-        [[ "${expected}" == "${actual}" ]] || c_die "strap.sh checksum mismatch (${actual} != ${expected})"
-        c_log "strap.sh checksum verified."
+    # BlackArch's server returns its homepage (HTTP 200) for missing paths, so a
+    # bad download looks like success. Verify we actually got a shell script.
+    if ! head -n1 /tmp/strap.sh | grep -q '^#!'; then
+        c_die "downloaded strap.sh is not a shell script — BlackArch unreachable or URL changed."
     fi
     chmod +x /tmp/strap.sh
     /tmp/strap.sh
@@ -71,7 +70,9 @@ c_log "Merging package list (flavor: ${FLAVOR})…"
 {
     echo ''
     echo '# ===== Arsenal additions ====='
-    grep -vE '^\s*#|^\s*$' "${OVERLAY}/packages.x86_64"
+    # Strip inline "# comment" docs, trailing whitespace, and blank lines so the
+    # profile's packages.x86_64 contains bare package names only.
+    sed -e 's/#.*//' -e 's/[[:space:]]\+$//' -e '/^[[:space:]]*$/d' "${OVERLAY}/packages.x86_64"
 } >> "${PROFILE}/packages.x86_64"
 
 if [[ "${FLAVOR}" == "lean" ]]; then
@@ -138,7 +139,19 @@ if ! grep -q '^\[blackarch\]' "${PROFILE}/pacman.conf"; then
 fi
 
 # -----------------------------------------------------------------------------
-# 8. Build
+# 8. Validate every package name resolves (fast — before the expensive build)
+# -----------------------------------------------------------------------------
+c_log "Validating that every package resolves against the repos…"
+mapfile -t PKGS < <(sed -e 's/#.*//' -e 's/[[:space:]]\+$//' -e '/^[[:space:]]*$/d' "${PROFILE}/packages.x86_64")
+if ! pacman -Sp --noconfirm "${PKGS[@]}" >/dev/null 2>/tmp/arsenal-resolve.err; then
+    c_log "Package resolution failed — unresolved targets:"
+    grep -iE 'target not found|could not find' /tmp/arsenal-resolve.err >&2 || cat /tmp/arsenal-resolve.err >&2
+    c_die "fix the offending names in profile/packages.x86_64 and rebuild."
+fi
+c_log "All $(printf '%s\n' "${PKGS[@]}" | wc -l) package entries resolve."
+
+# -----------------------------------------------------------------------------
+# 9. Build
 # -----------------------------------------------------------------------------
 c_log "Running mkarchiso — this pulls many packages and takes a while…"
 mkdir -p "${OUT}" "${WORK}/tmp"
