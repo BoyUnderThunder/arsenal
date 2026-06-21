@@ -61,12 +61,12 @@ jobs:
           sudo sh -c "cat ${UCODE} '${INITRD}' > '${KDIR}/initrd.img'"
           sudo chmod a+r "${KDIR}"/*
           sudo umount /mnt/cd
-          LOG=/tmp/serial.log; : > "${LOG}"; chmod a+rw "${LOG}"
+          LOG=/tmp/serial.log
           echo "=== booting kernel directly with console=ttyS0 ==="
           sudo qemu-system-x86_64 -enable-kvm -cpu host -m 4096 -smp 2 \
             -kernel "${KDIR}/vmlinuz" -initrd "${KDIR}/initrd.img" \
             -append "archisobasedir=arsenal archisolabel=${LABEL} console=ttyS0,115200 cow_spacesize=1G" \
-            -cdrom "${ISO}" -display none -serial "file:${LOG}" -monitor none -no-reboot &
+            -cdrom "${ISO}" -display none -serial stdio -monitor none -no-reboot > "${LOG}" 2>&1 &
           QPID=$!
           ok=0
           for i in $(seq 1 84); do
