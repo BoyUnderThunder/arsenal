@@ -43,9 +43,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends qemu-system-x86
 
+      - name: Inspect ISO boot configuration
+        run: |
+          ISO="$(find /mnt/iso -name '*.iso' | head -n1)"
+          echo "ISO: ${ISO}"; ls -lh "${ISO}"
+          echo "=== volume label ==="; sudo blkid -o value -s LABEL "${ISO}" || true
+          sudo mkdir -p /mnt/cd && sudo mount -o loop,ro "${ISO}" /mnt/cd
+          echo "=== syslinux: APPEND / console / vmlinuz lines ==="
+          sudo grep -rhnE 'APPEND|console=|vmlinuz|archisolabel' /mnt/cd/arsenal/boot/syslinux/ 2>/dev/null | head -60 || true
+          echo "=== grub: linux / console lines ==="
+          sudo grep -rhnE 'linux .*vmlinuz|console=|archisolabel' /mnt/cd/arsenal/boot/grub/ 2>/dev/null | head -40 || true
+          sudo umount /mnt/cd
+
       - name: Boot test (QEMU)
         run: |
           ISO="$(find /mnt/iso -name '*.iso' | head -n1)"
           echo "Testing: ${ISO}"; ls -lh "${ISO}"
           chmod +x tools/smoke-test.sh
-          sudo --preserve-env=SMOKE_MEM tools/smoke-test.sh "${ISO}" 1500
+          sudo --preserve-env=SMOKE_MEM tools/smoke-test.sh "${ISO}" 420
