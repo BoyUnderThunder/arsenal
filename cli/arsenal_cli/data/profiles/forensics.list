@@ -1,0 +1,12 @@
+# Forensics / DFIR toolset.
+autopsy
+sleuthkit
+volatility3
+foremost
+testdisk
+ddrescue
+perl-image-exiftool
+binwalk
+bulk_extractor
+dc3dd
+ewf-tools

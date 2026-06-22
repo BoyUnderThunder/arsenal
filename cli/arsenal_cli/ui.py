@@ -77,8 +77,9 @@ def line(status: Status, msg: str, detail: str = "") -> str:
     return out
 
 
-def print_status(status: Status, msg: str, detail: str = "", *, file=sys.stdout) -> None:
-    print(line(status, msg, detail), file=file)
+def print_status(status: Status, msg: str, detail: str = "", *, file=None) -> None:
+    # Resolve stdout at call time so redirect_stdout / reassignment is honoured.
+    print(line(status, msg, detail), file=file if file is not None else sys.stdout)
 
 
 def header(title: str) -> str:

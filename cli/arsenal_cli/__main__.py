@@ -10,13 +10,23 @@ import argparse
 import sys
 
 from . import __version__, log, ui
-from .commands import armory, doctor, reportbug
+from .commands import (
+    ai, armory, dashboard, doctor, profile, report, reportbug, update, workflow,
+)
 
 # subcommand name -> (handler, help text)
 _COMMANDS = {
     "armory": (armory.run, "list the weapon registry (default)"),
     "doctor": (doctor.run, "system health & security diagnostics"),
     "reportbug": (reportbug.run, "create a redacted support bundle"),
+    "report": (report.run, report.HELP),
+    "recon": (workflow.recon, "recon workflow: nmap + web content discovery"),
+    "web": (workflow.web, "web workflow: nikto + sqlmap (+ Burp hand-off)"),
+    "ad": (workflow.ad, "Active Directory workflow: netexec + bloodhound + impacket"),
+    "profile": (profile.run, profile.HELP),
+    "update": (update.run, update.HELP),
+    "ai": (ai.run, ai.HELP),
+    "dashboard": (dashboard.run, dashboard.HELP),
 }
 
 
@@ -35,6 +45,15 @@ def build_parser() -> argparse.ArgumentParser:
     rb = sub.add_parser("reportbug", help=_COMMANDS["reportbug"][1])
     rb.add_argument("--no-redact", action="store_true", help="do not redact sensitive data")
     rb.add_argument("-o", "--output", help="output path for the bundle")
+    rp = sub.add_parser("report", help=report.HELP)
+    report.add_arguments(rp)
+    workflow.add_recon_args(sub.add_parser("recon", help=_COMMANDS["recon"][1]))
+    workflow.add_web_args(sub.add_parser("web", help=_COMMANDS["web"][1]))
+    workflow.add_ad_args(sub.add_parser("ad", help=_COMMANDS["ad"][1]))
+    profile.add_arguments(sub.add_parser("profile", help=profile.HELP))
+    update.add_arguments(sub.add_parser("update", help=update.HELP))
+    ai.add_arguments(sub.add_parser("ai", help=ai.HELP))
+    dashboard.add_arguments(sub.add_parser("dashboard", help=dashboard.HELP))
     return parser
 
 

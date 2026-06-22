@@ -1,0 +1,14 @@
+# Reverse engineering / binary analysis toolset.
+ghidra
+radare2
+rizin
+cutter
+gdb
+pwndbg
+ropgadget
+ropper
+binwalk
+apktool
+jadx
+yara
+imhex

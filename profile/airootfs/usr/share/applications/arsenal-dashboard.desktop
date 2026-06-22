@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Arsenal Dashboard
+GenericName=Security Status Dashboard
+Comment=Arsenal security status: checks, firewall, updates, weapons, engagements
+Exec=arsenal dashboard
+Icon=utilities-system-monitor
+Terminal=false
+Categories=System;Security;Monitor;
+Keywords=arsenal;security;dashboard;status;
