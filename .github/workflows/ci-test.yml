@@ -50,4 +50,5 @@ jobs:
           shellcheck -S warning \
             profile/airootfs/usr/local/bin/arsenal \
             tools/smoke-test.sh \
+            tools/integration-test.sh \
             build.sh

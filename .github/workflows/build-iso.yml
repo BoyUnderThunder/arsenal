@@ -75,6 +75,13 @@ jobs:
           # KVM may be available on the runner; smoke-test auto-detects it.
           sudo --preserve-env=SMOKE_MEM tools/smoke-test.sh "${ISO}" 1500
 
+      - name: Integration test (hardening posture)
+        run: |
+          ISO="$(find /mnt/out -maxdepth 1 -name '*.iso' | head -n1)"
+          chmod +x tools/integration-test.sh
+          # Proves the Fortress is live (kernel/AppArmor/nftables/sysctls/doctor/weapons).
+          sudo --preserve-env=SMOKE_MEM tools/integration-test.sh "${ISO}" 1500
+
       - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
