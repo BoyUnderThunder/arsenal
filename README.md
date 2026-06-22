@@ -9,7 +9,8 @@ memorable *weapon* name (**The Armory**), and ships hardened by default
 
 > **Authorized testing only.** Arsenal assembles existing, legitimate
 > open-source tools. Use it on systems you own or are explicitly permitted to
-> test. Know your local law.
+> test. Know your local law. See the [threat model](docs/threat-model.md) and
+> [security policy](SECURITY.md).
 
 ---
 
@@ -147,7 +148,14 @@ installed to `/usr/lib/arsenal`):
 - **`arsenal dashboard`** — dark status dashboard (XFCE launcher / `--tui`).
 
 Full docs: **[docs/](docs/README.md)**. CLI source + tests in `cli/`
-(`.github/workflows/ci-test.yml` runs `python -m unittest`).
+(`.github/workflows/ci-test.yml` runs `ruff` + `python -m unittest`).
+
+### Project docs & governance
+- **[docs/](docs/README.md)** — full documentation index.
+- **[Threat model](docs/threat-model.md)** — what Arsenal defends, what it doesn't, and scope.
+- **[Security policy](SECURITY.md)** — reporting vulnerabilities in Arsenal itself.
+- **[Contributing](CONTRIBUTING.md)** — dev setup, adding weapons/commands, the white-hat rules.
+- **[Releasing](RELEASING.md)** — how a public release is produced and verified.
 
 ---
 

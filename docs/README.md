@@ -12,6 +12,10 @@ CLI on top of a curated toolkit.
 - [AI assistant](ai.md) — `arsenal ai` providers & configuration.
 - [Update & rollback](update.md) — `arsenal update` process.
 - [Troubleshooting](troubleshooting.md) — diagnostics, logs, support bundles.
+- [Threat model](threat-model.md) — what Arsenal defends against, and what it does not.
+
+### Project governance
+- [Security policy](../SECURITY.md) · [Contributing](../CONTRIBUTING.md) · [Releasing](../RELEASING.md)
 
 ## Quick start
 ```bash
@@ -24,5 +28,6 @@ arsenal dashboard       # dark status dashboard (XFCE)
 
 ## Building Arsenal
 The ISO is built by `build.sh` (archiso + BlackArch) and CI
-(`.github/workflows/build-iso.yml`); see the repo [README](../README.md).
-The CLI source lives in `cli/` and is tested by `ci-test.yml`.
+(`.github/workflows/build-iso.yml`); see the repo [README](../README.md) and
+[RELEASING.md](../RELEASING.md). The CLI source lives in `cli/` and is tested by
+`ci-test.yml`.
