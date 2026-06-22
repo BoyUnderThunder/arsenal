@@ -49,6 +49,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends shellcheck
           shellcheck -S warning \
             profile/airootfs/usr/local/bin/arsenal \
+            profile/airootfs/usr/local/bin/arsenal-selftest \
             tools/smoke-test.sh \
             tools/integration-test.sh \
             build.sh
