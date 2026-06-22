@@ -2,19 +2,11 @@
 from __future__ import annotations
 
 from .. import runner
-from .base import Task, Workflow, find_wordlist, first_lines
-
-
-def _host(target: str) -> str:
-    return target.replace("https://", "").replace("http://", "").split("/")[0]
-
-
-def _url(target: str) -> str:
-    return target if target.startswith(("http://", "https://")) else f"http://{target}"
+from .base import Task, Workflow, as_host, as_url, find_wordlist, first_lines
 
 
 def _nmap_summary(res: runner.Result) -> str:
-    opens = [l for l in res.stdout.splitlines() if "/tcp" in l and "open" in l]
+    opens = [ln for ln in res.stdout.splitlines() if "/tcp" in ln and "open" in ln]
     return f"{len(opens)} open TCP port(s)" if opens else first_lines(res.stdout)
 
 
@@ -23,7 +15,7 @@ class ReconWorkflow(Workflow):
     description = "Network + web reconnaissance"
 
     def plan(self) -> list[Task]:
-        host, url = _host(self.target), _url(self.target)
+        host, url = as_host(self.target), as_url(self.target)
         tasks = [
             Task("nmap", ["nmap", "-sV", "-Pn", "-T4", host], timeout=1200,
                  summarize=_nmap_summary),

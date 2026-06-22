@@ -11,7 +11,15 @@ import sys
 
 from . import __version__, log, ui
 from .commands import (
-    ai, armory, dashboard, doctor, profile, report, reportbug, update, workflow,
+    ai,
+    armory,
+    dashboard,
+    doctor,
+    profile,
+    report,
+    reportbug,
+    update,
+    workflow,
 )
 
 # subcommand name -> (handler, help text)

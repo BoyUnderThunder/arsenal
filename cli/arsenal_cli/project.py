@@ -56,7 +56,7 @@ class Project:
     # --- lifecycle -----------------------------------------------------------
     @classmethod
     def create(cls, name: str, kind: str = "manual", target: str = "",
-               base: Path | None = None) -> "Project":
+               base: Path | None = None) -> Project:
         root = Path(base) if base else ENGAGEMENTS_DIR
         path = root / f"{_slug(name)}-{datetime.datetime.now():%Y%m%d-%H%M%S}"
         for sub in SUBDIRS:
@@ -73,7 +73,7 @@ class Project:
         return proj
 
     @classmethod
-    def load(cls, path) -> "Project":
+    def load(cls, path) -> Project:
         path = Path(path)
         data = json.loads((path / "arsenal.json").read_text())
         steps = [Step(**s) for s in data.pop("steps", [])]

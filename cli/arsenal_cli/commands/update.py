@@ -10,7 +10,7 @@ import datetime
 import os
 from pathlib import Path
 
-from .. import runner, ui
+from .. import prompts, runner, ui
 from ..log import get_logger
 
 log = get_logger(__name__)
@@ -36,7 +36,7 @@ def _pending() -> list[str]:
         res = runner.run(["checkupdates"], timeout=120)
     else:
         res = runner.run(["pacman", "-Qu"], timeout=120)
-    return [l for l in res.stdout.splitlines() if l.strip()]
+    return [ln for ln in res.stdout.splitlines() if ln.strip()]
 
 
 def _prepare_rollback(no_snapshot: bool) -> Path:
@@ -115,14 +115,9 @@ def run(args) -> int:
     print(ui.header("Arsenal Update"))
     ui.print_status(ui.Status.INFO, f"{len(pending)} package(s) pending" if pending else "no pending updates")
 
-    if not args.yes:
-        try:
-            if input("  Proceed with full upgrade? [y/N] ").strip().lower() not in ("y", "yes"):
-                ui.print_status(ui.Status.INFO, "aborted")
-                return 0
-        except EOFError:
-            ui.print_status(ui.Status.FAIL, "no confirmation (use --yes)")
-            return 1
+    proceed = prompts.confirm_or_exit("Proceed with full upgrade?", assume_yes=args.yes)
+    if proceed is not None:
+        return proceed
 
     _prepare_rollback(args.no_snapshot)
 

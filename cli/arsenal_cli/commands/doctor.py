@@ -9,8 +9,8 @@ from __future__ import annotations
 import os
 import shutil
 import socket
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from .. import runner, ui
 from ..log import get_logger
@@ -107,12 +107,12 @@ def check_version() -> Check:
 def check_updates() -> Check:
     if runner.which("checkupdates"):
         res = runner.run(["checkupdates"], timeout=90)
-        pending = [l for l in res.stdout.splitlines() if l.strip()]
+        pending = [ln for ln in res.stdout.splitlines() if ln.strip()]
     else:
         res = runner.run(["pacman", "-Qu"], timeout=90)
         if res.missing:
             return Check("Pending updates", ui.Status.INFO, "pacman unavailable")
-        pending = [l for l in res.stdout.splitlines() if l.strip()]
+        pending = [ln for ln in res.stdout.splitlines() if ln.strip()]
     if pending:
         return Check("Updates available", ui.Status.WARN, f"{len(pending)} package(s) — run: arsenal update")
     return Check("System up to date", ui.Status.OK)
@@ -122,7 +122,7 @@ def check_integrity() -> Check:
     res = runner.run(["pacman", "-Qkk"], timeout=180)
     if res.missing:
         return Check("Package integrity", ui.Status.INFO, "pacman unavailable")
-    problems = [l for l in (res.stdout + res.stderr).splitlines() if "warning:" in l or "error:" in l]
+    problems = [ln for ln in (res.stdout + res.stderr).splitlines() if "warning:" in ln or "error:" in ln]
     if res.ok and not problems:
         return Check("Package integrity verified", ui.Status.OK)
     return Check("Package integrity", ui.Status.WARN, f"{len(problems)} file warning(s)")
