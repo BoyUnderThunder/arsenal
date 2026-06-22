@@ -66,6 +66,15 @@ mkdir -p "${PROFILE}"
 cp -a "${RELENG}/." "${PROFILE}/"
 cp -a "${OVERLAY}/airootfs/." "${PROFILE}/airootfs/"
 
+# Install the Arsenal platform CLI (Python) into the image and stamp the build.
+c_log "Installing Arsenal platform CLI…"
+install -d "${PROFILE}/airootfs/usr/lib/arsenal"
+cp -a "${HERE}/cli/arsenal_cli" "${PROFILE}/airootfs/usr/lib/arsenal/"
+find "${PROFILE}/airootfs/usr/lib/arsenal" -name '__pycache__' -type d -prune -exec rm -rf {} +
+if [[ -f "${PROFILE}/airootfs/etc/arsenal/arsenal.conf" ]]; then
+    sed -i "s/^build_date *=.*/build_date = $(date +%Y.%m.%d)/" "${PROFILE}/airootfs/etc/arsenal/arsenal.conf"
+fi
+
 c_log "Merging package list (flavor: ${FLAVOR})…"
 {
     echo ''

@@ -1,0 +1,11 @@
+# Blue team — defensive / monitoring toolset.
+suricata
+zeek
+wireshark-qt
+rkhunter
+chkrootkit
+clamav
+lynis
+aide
+ntopng
+arpwatch

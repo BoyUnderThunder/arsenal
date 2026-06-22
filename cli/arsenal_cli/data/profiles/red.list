@@ -1,0 +1,14 @@
+# Red team — offensive toolset additions.
+# Package names resolve against [core]/[extra]/[blackarch] at install time.
+seclists
+wfuzz
+wpscan
+amass
+subfinder
+nuclei
+enum4linux-ng
+smbmap
+evil-winrm
+kerbrute
+crackmapexec
+hashid

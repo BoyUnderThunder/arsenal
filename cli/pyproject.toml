@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arsenal-cli"
+version = "0.1.0"
+description = "Arsenal security platform command-line interface"
+readme = "README.md"
+requires-python = ">=3.10"
+# Foundation is stdlib-only. Optional features detect extras (rich, jinja2,
+# weasyprint, requests, ollama) at runtime and degrade gracefully.
+dependencies = []
+
+[project.scripts]
+arsenal = "arsenal_cli.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["arsenal_cli*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

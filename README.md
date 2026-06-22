@@ -131,6 +131,26 @@ and the `arsenal` command, so they never drift.
 
 ---
 
+## The Platform CLI (`arsenal <command>`)
+
+Beyond the armory, `arsenal` is a full platform CLI (Python, in `cli/`,
+installed to `/usr/lib/arsenal`):
+
+- **`arsenal` / `armory`** — the weapon registry table.
+- **`arsenal doctor`** — colour-coded health & security diagnostics.
+- **`arsenal update`** — safe upgrade with keyrings-first, rollback prep & verify.
+- **`arsenal reportbug`** — redacted, compressed support bundle.
+- **`arsenal recon|web|ad <target>`** — multi-tool workflows into engagement projects.
+- **`arsenal report <project>`** — Markdown/HTML/PDF reports.
+- **`arsenal profile red|blue|forensics|reverse`** — install curated toolsets.
+- **`arsenal ai`** — AI assistant (local Ollama or API), swappable providers.
+- **`arsenal dashboard`** — dark status dashboard (XFCE launcher / `--tui`).
+
+Full docs: **[docs/](docs/README.md)**. CLI source + tests in `cli/`
+(`.github/workflows/ci-test.yml` runs `python -m unittest`).
+
+---
+
 ## The Fortress (hardening)
 
 - **`linux-hardened`** kernel (replaces stock `linux`).

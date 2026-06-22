@@ -13,3 +13,12 @@ hunter|bloodhound|Active Directory|BloodHound — AD attack-path mapping
 scalpel|ghidra|Reversing|Ghidra — software reverse engineering
 detective|vol|Forensics|Volatility 3 — memory forensics
 interrogator|autopsy|Forensics|Autopsy — digital forensics platform
+# --- extended offensive toolkit ---
+locksmith|netexec|Active Directory|NetExec — SMB/WinRM/LDAP sweep & creds
+pickpocket|impacket-secretsdump|Active Directory|Impacket — dump secrets (suite: impacket-*)
+poltergeist|responder|Active Directory|Responder — LLMNR/NBT-NS/mDNS poisoner
+jackhammer|ffuf|Web|ffuf — fast web fuzzer
+excavator|feroxbuster|Web|feroxbuster — recursive content discovery
+breach|gobuster|Web|gobuster — dir/DNS/vhost brute-forcer
+probe|nikto|Web|Nikto — web server vuln scanner
+blueprint|searchsploit|Exploitation|searchsploit — offline Exploit-DB search

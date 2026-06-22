@@ -97,3 +97,8 @@ openssh
 man-db
 bash-completion
 terminus-font
+
+# ---- Arsenal platform CLI support ------------------------------------------
+pacman-contrib   # checkupdates (arsenal doctor)
+inxi             # hardware summary (arsenal reportbug)
+pciutils         # lspci (arsenal reportbug)
