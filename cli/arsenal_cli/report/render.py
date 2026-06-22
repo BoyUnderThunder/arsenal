@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import datetime
 import html
-from pathlib import Path
 
 from ..project import Project
 
 _STATUS_EMOJI = {"ok": "✓", "fail": "✗", "skipped": "–", "pending": "…"}
+
+
+def _cell(text) -> str:
+    """Flatten a value so it cannot break a Markdown table row."""
+    return str(text).replace("|", "/").replace("\n", " ").replace("\r", " ")
 
 
 # --- Markdown ---------------------------------------------------------------
@@ -38,7 +42,7 @@ def render_markdown(p: Project) -> str:
     for s in p.steps:
         emoji = _STATUS_EMOJI.get(s.status, s.status)
         rc = "" if s.returncode is None else str(s.returncode)
-        a(f"| {s.name} | {emoji} {s.status} | {rc} | {s.summary.replace('|', '/')} |")
+        a(f"| {_cell(s.name)} | {emoji} {s.status} | {rc} | {_cell(s.summary)} |")
     a("")
     for s in p.steps:
         a(f"### {s.name}")

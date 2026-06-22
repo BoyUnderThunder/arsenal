@@ -8,7 +8,7 @@ from .base import Task, Workflow, first_lines
 
 
 def _nxc_summary(res: runner.Result) -> str:
-    sigs = [l for l in res.stdout.splitlines() if "[+]" in l or "[*]" in l]
+    sigs = [ln for ln in res.stdout.splitlines() if "[+]" in ln or "[*]" in ln]
     return first_lines("\n".join(sigs) or res.stdout)
 
 

@@ -26,6 +26,12 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Lint (ruff)
+        run: |
+          python -m pip install --quiet "ruff==0.15.18"
+          cd cli
+          ruff check .
+
       - name: Unit tests (stdlib unittest)
         run: |
           cd cli

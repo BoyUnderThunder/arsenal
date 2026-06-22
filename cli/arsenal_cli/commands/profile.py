@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from .. import runner, ui
+from .. import prompts, runner, ui
 from ..log import get_logger
 
 log = get_logger(__name__)
@@ -77,13 +77,10 @@ def run(args) -> int:
         return 1
 
     if not args.yes:
-        try:
-            if input("\n  Install these packages? [y/N] ").strip().lower() not in ("y", "yes"):
-                ui.print_status(ui.Status.INFO, "aborted")
-                return 0
-        except EOFError:
-            ui.print_status(ui.Status.FAIL, "no confirmation (use --yes)")
-            return 1
+        print()
+    proceed = prompts.confirm_or_exit("Install these packages?", assume_yes=args.yes)
+    if proceed is not None:
+        return proceed
 
     log.info("installing profile %s: %s", name, " ".join(pkgs))
     runner.run(["pacman", "-Sy", "--noconfirm"], timeout=300)  # refresh DBs

@@ -14,8 +14,8 @@ from pathlib import Path
 from .. import runner, ui
 from ..version import os_version
 
-# (weapon, command) pairs collected into the bundle. Missing tools are recorded
-# as such rather than failing the report.
+# Output filename -> command run to populate it. A missing tool is recorded as
+# such in its own file rather than failing the whole report.
 _COMMANDS: dict[str, list[str]] = {
     "kernel.txt": ["uname", "-a"],
     "journalctl.txt": ["journalctl", "-b", "--no-pager"],

@@ -9,6 +9,7 @@ from arsenal_cli import runner, ui
 from arsenal_cli.project import Project
 from arsenal_cli.workflows import recon as recon_mod
 from arsenal_cli.workflows.ad import ADWorkflow
+from arsenal_cli.workflows.base import as_host, as_url
 from arsenal_cli.workflows.recon import ReconWorkflow
 from arsenal_cli.workflows.web import WebWorkflow
 
@@ -43,6 +44,12 @@ class TestPlans(unittest.TestCase):
     def test_ad_plan_with_creds(self):
         names = [t.name for t in ADWorkflow("corp.local", extra={"user": "u", "password": "p"}).plan()]
         self.assertIn("bloodhound-python", names)
+
+    def test_target_normalization(self):
+        self.assertEqual(as_host("https://example.com/admin"), "example.com")
+        self.assertEqual(as_host("10.0.0.1"), "10.0.0.1")
+        self.assertEqual(as_url("example.com"), "http://example.com")
+        self.assertEqual(as_url("https://x"), "https://x")
 
 
 class TestRun(unittest.TestCase):

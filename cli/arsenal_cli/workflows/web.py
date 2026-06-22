@@ -5,11 +5,7 @@ workflow records a manual step pointing at the ``tower`` launcher instead.
 """
 from __future__ import annotations
 
-from .base import Task, Workflow
-
-
-def _url(target: str) -> str:
-    return target if target.startswith(("http://", "https://")) else f"http://{target}"
+from .base import Task, Workflow, as_url
 
 
 class WebWorkflow(Workflow):
@@ -17,7 +13,7 @@ class WebWorkflow(Workflow):
     description = "Web application assessment"
 
     def plan(self) -> list[Task]:
-        url = _url(self.target)
+        url = as_url(self.target)
         return [
             Task("nikto", ["nikto", "-host", url, "-ask", "no"], timeout=1200, optional=True),
             Task("sqlmap", ["sqlmap", "-u", url, "--batch", "--crawl=1", "--level=1"],

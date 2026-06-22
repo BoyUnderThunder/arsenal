@@ -6,9 +6,9 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 from arsenal_cli import ui
+from arsenal_cli.commands import report as report_cmd
 from arsenal_cli.project import Project, Step
 from arsenal_cli.report import render_html, render_markdown, render_pdf
-from arsenal_cli.commands import report as report_cmd
 
 
 def _sample(base):
@@ -43,6 +43,16 @@ class TestRenderers(unittest.TestCase):
             self.assertTrue(Path(msg).exists())
         else:
             self.assertIn("WeasyPrint", msg)
+
+    def test_markdown_cells_stay_single_line(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Project.create("nl", kind="recon", base=Path(td))
+            p.add_step(Step(name="multi", status="ok",
+                            summary="line one\nline two | with pipe"))
+            md = render_markdown(p)
+        rows = [ln for ln in md.splitlines() if ln.startswith("| multi")]
+        self.assertEqual(len(rows), 1)  # newline did not split the row
+        self.assertIn("line one line two / with pipe", rows[0])
 
 
 class TestReportCommand(unittest.TestCase):

@@ -1,7 +1,7 @@
 import io
 import types
 import unittest
-from contextlib import redirect_stdout, redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
 from arsenal_cli import runner, ui

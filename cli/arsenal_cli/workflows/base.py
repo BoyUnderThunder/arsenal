@@ -3,9 +3,9 @@ chain of tools, records results into a project, and writes a report."""
 from __future__ import annotations
 
 import datetime
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Optional
 
 from .. import runner, ui
 from ..log import get_logger
@@ -33,8 +33,18 @@ def find_wordlist(explicit: str | None = None) -> str | None:
 
 
 def first_lines(text: str | None, n: int = 1) -> str:
-    lines = [l for l in (text or "").splitlines() if l.strip()]
+    lines = [ln for ln in (text or "").splitlines() if ln.strip()]
     return " ".join(lines[:n])[:200]
+
+
+def as_host(target: str) -> str:
+    """Reduce a target to ``host[:port]`` (drop scheme and path), e.g. for nmap."""
+    return target.replace("https://", "").replace("http://", "").split("/")[0]
+
+
+def as_url(target: str) -> str:
+    """Ensure *target* is an http(s) URL, defaulting to ``http://``."""
+    return target if target.startswith(("http://", "https://")) else f"http://{target}"
 
 
 @dataclass
@@ -50,7 +60,7 @@ class Task:
     timeout: float = 600.0
     optional: bool = False
     ext: str = "txt"
-    summarize: Optional[Callable[[runner.Result], str]] = None
+    summarize: Callable[[runner.Result], str] | None = None
     note: str = ""
 
 
