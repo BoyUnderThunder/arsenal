@@ -5,8 +5,8 @@
 #  Goes beyond smoke-test.sh ("does it reach a shell?") and proves the Fortress
 #  is actually LIVE. Boots the ISO headless via a direct kernel boot (with the
 #  REAL Arsenal kernel cmdline, incl. the AppArmor LSM params, plus the
-#  `arsenal.selftest` token). Root's .bash_profile sees that token on the
-#  serial autologin shell and runs /usr/local/bin/arsenal-selftest, which
+#  `arsenalselftest` token). A login-shell hook (/etc/profile.d) sees that token
+#  on the serial autologin shell and runs /usr/local/bin/arsenal-selftest, which
 #  prints the assertions and a sentinel to the serial console:
 #
 #    * linux-hardened kernel running
@@ -68,7 +68,7 @@ if [[ -w /dev/kvm ]]; then ACCEL=(-enable-kvm -cpu host); echo "integration-test
 # as the ISO's bootloader configures it) plus the self-test token.
 APPEND="archisobasedir=${BASEDIR} archisolabel=${LABEL}"
 APPEND+=" apparmor=1 security=apparmor lsm=landlock,lockdown,yama,integrity,apparmor,bpf"
-APPEND+=" console=ttyS0,115200 cow_spacesize=1G arsenal.selftest"
+APPEND+=" console=ttyS0,115200 cow_spacesize=1G arsenalselftest"
 
 echo "integration-test: booting ${ISO} (label=${LABEL}, basedir=${BASEDIR}, timeout ${TIMEOUT}s)"
 qemu-system-x86_64 "${ACCEL[@]}" -m "${MEM}" -smp 2 \
@@ -92,10 +92,10 @@ cp "${LOG}" /tmp/arsenal-serial-integration.log 2>/dev/null || true
 
 echo "----- self-test output -----"
 grep -aE '^\[(PASS|FAIL|INFO)\]|^ARSENAL-SELFTEST:' "${LOG}" | tr -d '\000\r' || true
-if grep -qa 'root@arsenal' "${LOG}"; then
-    echo "diag: autologin shell reached (boot OK)"
+if grep -qa 'arsenal login' "${LOG}"; then
+    echo "diag: autologin reached (boot OK)"
 else
-    echo "diag: autologin shell NOT reached — boot/console problem"
+    echo "diag: autologin NOT reached — boot/console problem"
 fi
 echo "diag: serial log is $(wc -l < "${LOG}" 2>/dev/null || echo '?') line(s)"
 echo "----- serial log (tail 120) -----"

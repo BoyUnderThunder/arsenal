@@ -50,6 +50,7 @@ jobs:
           shellcheck -S warning \
             profile/airootfs/usr/local/bin/arsenal \
             profile/airootfs/usr/local/bin/arsenal-selftest \
+            profile/airootfs/etc/profile.d/zz-arsenal-selftest.sh \
             tools/smoke-test.sh \
             tools/integration-test.sh \
             build.sh
