@@ -96,8 +96,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-logs
+          # Small logs only — never the multi-GB mkarchiso work tree, which
+          # otherwise floods the job log and buries the integration output.
           path: |
-            /mnt/work/tmp/iso/
             /tmp/arsenal-serial*.log
           retention-days: 5
           if-no-files-found: ignore

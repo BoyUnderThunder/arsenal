@@ -5,9 +5,9 @@
 #  Goes beyond smoke-test.sh ("does it reach a shell?") and proves the Fortress
 #  is actually LIVE. Boots the ISO headless via a direct kernel boot (with the
 #  REAL Arsenal kernel cmdline, incl. the AppArmor LSM params, plus the
-#  `arsenal.selftest` token), and lets the in-image self-test
-#  (arsenal-selftest.service -> /usr/local/bin/arsenal-selftest) run the
-#  assertions and print a sentinel to the serial console:
+#  `arsenal.selftest` token). Root's .bash_profile sees that token on the
+#  serial autologin shell and runs /usr/local/bin/arsenal-selftest, which
+#  prints the assertions and a sentinel to the serial console:
 #
 #    * linux-hardened kernel running
 #    * key sysctls applied (kptr_restrict, ptrace_scope, bpf_jit_harden)
@@ -87,10 +87,19 @@ while [[ $(date +%s) -lt ${deadline} ]]; do
     sleep 5
 done
 
+# Preserve the serial log outside the temp dir so CI can upload it on failure.
+cp "${LOG}" /tmp/arsenal-serial-integration.log 2>/dev/null || true
+
 echo "----- self-test output -----"
 grep -aE '^\[(PASS|FAIL|INFO)\]|^ARSENAL-SELFTEST:' "${LOG}" | tr -d '\000\r' || true
-echo "----- serial log (tail 40) -----"
-tail -n 40 "${LOG}" 2>/dev/null | tr -d '\000\r' || true
+if grep -qa 'root@arsenal' "${LOG}"; then
+    echo "diag: autologin shell reached (boot OK)"
+else
+    echo "diag: autologin shell NOT reached — boot/console problem"
+fi
+echo "diag: serial log is $(wc -l < "${LOG}" 2>/dev/null || echo '?') line(s)"
+echo "----- serial log (tail 120) -----"
+tail -n 120 "${LOG}" 2>/dev/null | tr -d '\000\r' || true
 echo "--------------------------------"
 
 if [[ ${ok} -eq 1 ]]; then echo "INTEGRATION TEST PASSED ✔"; exit 0; fi
