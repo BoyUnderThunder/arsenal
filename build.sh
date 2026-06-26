@@ -136,8 +136,11 @@ if ((${#BOOTCFG[@]})); then
     sed -i 's/Arch Linux/Arsenal/g' "${BOOTCFG[@]}"
 fi
 
-# Make sure our scripts are executable inside the image.
-chmod 0755 "${PROFILE}/airootfs/usr/local/bin/arsenal"
+# Make sure our scripts are executable inside the image. The exec bit can be
+# dropped in transit through CI/container copies, so set it explicitly here —
+# without this the boot-time self-test hook hits "permission denied".
+chmod 0755 "${PROFILE}/airootfs/usr/local/bin/arsenal" \
+           "${PROFILE}/airootfs/usr/local/bin/arsenal-selftest"
 
 # -----------------------------------------------------------------------------
 # 7. BlackArch repo for the build's pacman

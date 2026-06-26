@@ -3,9 +3,9 @@
 #  Arsenal hardening self-test
 # =============================================================================
 #  Verifies the Fortress is actually LIVE (not merely configured). Run it any
-#  time as `arsenal-selftest`, or let it run automatically at boot:
-#  arsenal-selftest.service runs it when the kernel cmdline contains
-#  `arsenal.selftest` (used by tools/integration-test.sh in CI).
+#  time as `arsenal-selftest`, or let it run automatically at boot: a login-shell
+#  hook (/etc/profile.d/zz-arsenal-selftest.sh) runs it when the kernel cmdline
+#  contains the `arsenalselftest` token (used by tools/integration-test.sh in CI).
 #
 #  Prints one line per check and a final `ARSENAL-SELFTEST: PASS|FAIL` sentinel
 #  to both stdout and the serial console, and exits with the failure count.

@@ -17,7 +17,10 @@ esac
 
 case " ${__arsenal_cmdline} " in
     *" arsenalselftest "*)
-        /usr/local/bin/arsenal-selftest || true
+        # Run via bash so a dropped exec bit can't break the CI trigger; the
+        # serial sentinel (ARSENAL-SELFTEST: PASS/FAIL), not the exit code,
+        # decides the result.
+        bash /usr/local/bin/arsenal-selftest || true
         ;;
 esac
 unset __arsenal_cmdline
