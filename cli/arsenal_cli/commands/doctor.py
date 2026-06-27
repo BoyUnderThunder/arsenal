@@ -49,11 +49,17 @@ def check_firewall() -> Check:
     active = runner.run(["systemctl", "is-active", "nftables"], timeout=10).stdout.strip()
     ruleset = runner.run(["nft", "list", "ruleset"], timeout=10)
     default_deny = "policy drop" in ruleset.stdout
-    if active == "active" and default_deny:
-        return Check("Firewall active (nftables, default-deny)", ui.Status.OK)
+    # The loaded ruleset is the ground truth for whether the firewall is up: a
+    # default-deny policy blocks inbound traffic even when nftables.service reads
+    # "inactive" — it is a oneshot that exits after loading rules, which is normal
+    # on the live ISO. Only treat the firewall as down when no default-deny
+    # policy is present at all.
+    if default_deny:
+        detail = "nftables, default-deny" if active == "active" else f"nftables, default-deny (service {active or 'inactive'})"
+        return Check("Firewall active (default-deny)", ui.Status.OK, detail)
     if active == "active":
         return Check("Firewall active", ui.Status.WARN, "nftables up but no default-deny policy")
-    return Check("Firewall", ui.Status.FAIL, "nftables inactive")
+    return Check("Firewall", ui.Status.FAIL, "nftables inactive, no default-deny ruleset")
 
 
 def check_blackarch() -> Check:
