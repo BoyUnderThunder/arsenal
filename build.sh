@@ -155,9 +155,13 @@ fi
 # -----------------------------------------------------------------------------
 c_log "Validating that every package resolves against the repos…"
 mapfile -t PKGS < <(sed -e 's/#.*//' -e 's/[[:space:]]\+$//' -e '/^[[:space:]]*$/d' "${PROFILE}/packages.x86_64")
-if ! pacman -Sp --noconfirm "${PKGS[@]}" >/dev/null 2>/tmp/arsenal-resolve.err; then
-    c_log "Package resolution failed — unresolved targets:"
-    grep -iE 'target not found|could not find' /tmp/arsenal-resolve.err >&2 || cat /tmp/arsenal-resolve.err >&2
+# pacman prints the offending package name(s) AND any dependency breakage to
+# stdout, not stderr — so capture both streams or the cause is lost.
+if ! pacman -Sp --noconfirm "${PKGS[@]}" >/tmp/arsenal-resolve.err 2>&1; then
+    c_log "Package resolution failed — pacman output:"
+    grep -iE 'target not found|could not find|could not satisfy|unable to satisfy|breaks dependency|requires|conflicting' /tmp/arsenal-resolve.err >&2 || true
+    echo "----- full pacman resolve log -----" >&2
+    cat /tmp/arsenal-resolve.err >&2
     c_die "fix the offending names in profile/packages.x86_64 and rebuild."
 fi
 c_log "All $(printf '%s\n' "${PKGS[@]}" | wc -l) package entries resolve."
