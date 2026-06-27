@@ -54,9 +54,9 @@ fi
 # -----------------------------------------------------------------------------
 # 1. Build dependencies
 # -----------------------------------------------------------------------------
-c_log "Installing build dependencies (archiso, git, curl)…"
+c_log "Installing build dependencies (archiso, git, curl, python)…"
 pacman -Sy --needed --noconfirm archlinux-keyring
-pacman -S  --needed --noconfirm archiso git curl
+pacman -S  --needed --noconfirm archiso git curl python
 
 [[ -d ${RELENG} ]] || c_die "releng profile missing at ${RELENG} (is 'archiso' installed?)"
 
@@ -222,3 +222,29 @@ mkarchiso -v -w "${WORK}/tmp" -o "${OUT}" "${PROFILE}"
 
 c_log "Build complete:"
 ls -lh "${OUT}"/*.iso
+
+# -----------------------------------------------------------------------------
+# 10. Supply-chain provenance: lockfile + SBOM
+# -----------------------------------------------------------------------------
+# Record exactly what shipped, from the built airootfs's pacman DB (the full
+# dependency closure, not just the explicit package list). Best-effort: never
+# lose a built ISO over provenance.
+c_log "Generating provenance (lockfile + SBOM)…"
+ISO="$(find "${OUT}" -maxdepth 1 -name '*.iso' | head -n1)"
+AIROOTFS="$(find "${WORK}/tmp" -maxdepth 3 -type d -name airootfs 2>/dev/null | head -n1)"
+if [[ -n "${ISO}" && -n "${AIROOTFS}" && -d "${AIROOTFS}/var/lib/pacman/local" ]]; then
+    BASE="$(basename "${ISO}")"
+    VERSION="${BASE#arsenal-}"; VERSION="${VERSION%-x86_64.iso}"
+    SNAP_ARG=""; [[ "${ARCH_SNAPSHOT}" != "off" ]] && SNAP_ARG="${ARCH_SNAPSHOT}"
+    if pacman -Q --dbpath "${AIROOTFS}/var/lib/pacman" > "${WORK}/pkglist.txt" 2>/dev/null \
+       && python "${HERE}/tools/gen_sbom.py" \
+            --os-name arsenal --os-version "${VERSION}" --arch x86_64 --snapshot "${SNAP_ARG}" \
+            --lock "${OUT}/${BASE}.lock" --sbom "${OUT}/${BASE}.cdx.json" < "${WORK}/pkglist.txt"; then
+        c_log "Provenance written:"
+        ls -lh "${OUT}/${BASE}.lock" "${OUT}/${BASE}.cdx.json"
+    else
+        c_log "WARN: provenance generation failed (non-fatal) — ISO is unaffected."
+    fi
+else
+    c_log "WARN: ISO or airootfs pacman DB not found (airootfs='${AIROOTFS:-none}') — skipping provenance."
+fi

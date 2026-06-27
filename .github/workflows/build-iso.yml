@@ -84,6 +84,16 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+      - name: Upload provenance (lockfile + SBOM)
+        uses: actions/upload-artifact@v4
+        with:
+          name: arsenal-provenance
+          path: |
+            /mnt/out/*.lock
+            /mnt/out/*.cdx.json
+          retention-days: 30
+          if-no-files-found: warn
+
       - name: Integration test (hardening posture)
         run: |
           ISO="$(find /mnt/out -maxdepth 1 -name '*.iso' | head -n1)"
