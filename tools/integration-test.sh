@@ -31,7 +31,7 @@ TIMEOUT="${2:-1200}"
 command -v qemu-system-x86_64 >/dev/null || { echo "integration-test: qemu-system-x86_64 missing" >&2; exit 2; }
 [[ ${EUID} -eq 0 ]] || { echo "integration-test: must run as root (mounts the ISO)" >&2; exit 2; }
 
-MEM="${SMOKE_MEM:-4096}"
+MEM="${SMOKE_MEM:-6144}"
 WORK="$(mktemp -d)"
 LOG="${WORK}/serial.log"
 MNT="${WORK}/mnt"; mkdir -p "${MNT}"
@@ -68,7 +68,10 @@ if [[ -w /dev/kvm ]]; then ACCEL=(-enable-kvm -cpu host); echo "integration-test
 # as the ISO's bootloader configures it) plus the self-test token.
 APPEND="archisobasedir=${BASEDIR} archisolabel=${LABEL}"
 APPEND+=" apparmor=1 security=apparmor lsm=landlock,lockdown,yama,integrity,apparmor,bpf"
-APPEND+=" console=ttyS0,115200 cow_spacesize=1G arsenalselftest"
+# cow_spacesize is generous on purpose: the live overlay is a tmpfs of this
+# size, and `arsenal doctor`'s disk check FAILs at <=1 GB free (which would fail
+# the posture self-test on an otherwise-healthy system).
+APPEND+=" console=ttyS0,115200 cow_spacesize=6G arsenalselftest"
 
 echo "integration-test: booting ${ISO} (label=${LABEL}, basedir=${BASEDIR}, timeout ${TIMEOUT}s)"
 qemu-system-x86_64 "${ACCEL[@]}" -m "${MEM}" -smp 2 \

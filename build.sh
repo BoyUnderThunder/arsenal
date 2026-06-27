@@ -155,11 +155,17 @@ if ((${#BOOTCFG[@]})); then
     sed -i 's/Arch Linux/Arsenal/g' "${BOOTCFG[@]}"
 fi
 
-# Make sure our scripts are executable inside the image. The exec bit can be
-# dropped in transit through CI/container copies, so set it explicitly here —
-# without this the boot-time self-test hook hits "permission denied".
+# Make our overlay scripts executable in the *built* image. A chmod on the
+# profile copy is not enough on its own: archiso sets airootfs permissions from
+# profiledef.sh's file_permissions array, and anything not listed there can land
+# non-executable in the squashfs (which is why `arsenal` and `arsenal-selftest`
+# showed up at boot as "permission denied" / rc=126). Add explicit entries —
+# the authoritative fix — and keep the chmod so the profile tree itself is sane.
 chmod 0755 "${PROFILE}/airootfs/usr/local/bin/arsenal" \
            "${PROFILE}/airootfs/usr/local/bin/arsenal-selftest"
+sed -i '/file_permissions=(/a\  ["/usr/local/bin/arsenal"]="0:0:755"\n  ["/usr/local/bin/arsenal-selftest"]="0:0:755"' "${PROFILE}/profiledef.sh"
+grep -q 'usr/local/bin/arsenal-selftest' "${PROFILE}/profiledef.sh" \
+    || c_die "could not inject file_permissions into profiledef.sh (unexpected format)."
 
 # -----------------------------------------------------------------------------
 # 7. BlackArch repo for the build's pacman
