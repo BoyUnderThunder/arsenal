@@ -40,12 +40,16 @@ attached and the tag points at the `main` commit you built from.
 ## What users do with a release
 
 ```bash
-# download every *.iso.part* and the .sha256 into one folder, then:
+# download every *.iso.part*, the .sha256, and SHA256SUMS into one folder, then:
+sha256sum -c SHA256SUMS                               # verifies the parts + provenance
+# if SHA256SUMS.asc is attached, the release is signed — import the public key, then:
+gpg --verify SHA256SUMS.asc SHA256SUMS                # must print: Good signature
 cat arsenal-<tag>-x86_64.iso.part?? > arsenal-<tag>-x86_64.iso
 sha256sum -c arsenal-<tag>-x86_64.iso.sha256          # must print: OK
 sudo dd if=arsenal-<tag>-x86_64.iso of=/dev/sdX bs=4M status=progress oflag=sync
 ```
-(or feed the reassembled `.iso` to Ventoy / Rufus / balenaEtcher).
+(or feed the reassembled `.iso` to Ventoy / Rufus / balenaEtcher). The package
+lockfile (`*.lock`) and CycloneDX SBOM (`*.cdx.json`) are attached for auditing.
 
 ## Reproducibility & provenance
 
@@ -65,12 +69,19 @@ default set in `build.sh`; override or set `off` to disable), so a rebuild from
 the same commit resolves the same Arch package versions. BlackArch has no dated
 archive and stays rolling.
 
-Still on the roadmap (Tier 1):
-- **Signing:** a detached GPG signature for the ISO and each split part, a
-  signed `SHA256SUMS.asc`, and signed git tags, with `gpg --verify` steps in the
-  release notes. (Requires a project signing key in CI secrets —
-  `GPG_PRIVATE_KEY` / `GPG_PASSPHRASE` — and the public key published for
-  verification.)
+Each release also publishes a **`SHA256SUMS`** manifest covering every part and
+provenance file, plus the lockfile and SBOM as release assets.
+
+**Signing** is wired into `release.yml` but inert until a project key is
+configured. To activate it:
+1. Add repository secrets `GPG_PRIVATE_KEY` (an ASCII-armored private key) and
+   `GPG_PASSPHRASE`.
+2. Publish the corresponding **public** key (in the repo and/or release notes)
+   so downloaders can import it for verification.
+
+With the secret present, every release gains a detached, armored
+`SHA256SUMS.asc` (and `<iso>.sha256.asc`); without it, releases publish unsigned
+exactly as before. Signed git tags remain a manual step (`git tag -s <tag>`).
 
 ## Notes
 - Build artifacts (`work/`, `out/`, `*.iso`) are gitignored; never commit them.
