@@ -33,6 +33,25 @@ c_die() { printf '\033[1;31m[arsenal:ERROR]\033[0m %s\n' "$*" >&2; exit 1; }
 command -v pacman >/dev/null 2>&1 || c_die "pacman not found — build on Arch Linux or in an archlinux container."
 
 # -----------------------------------------------------------------------------
+# 0. Pin the Arch mirror to a reproducible snapshot
+# -----------------------------------------------------------------------------
+# Rolling Arch occasionally serves an internally-inconsistent [core] (e.g. a
+# systemd point release landing before its split package systemd-sysvcompat is
+# rebuilt — which breaks `base` for everyone until maintainers catch up).
+# Pinning the Arch mirror to a dated Arch Linux Archive (ALA) snapshot makes the
+# build both reproducible and immune to those transient windows. BlackArch has
+# no dated archive, so it stays on its rolling mirror; the small version skew
+# against the pinned Arch base is harmless in practice. Override the date with
+# ARSENAL_ARCH_SNAPSHOT=YYYY/MM/DD, or disable pinning with ARSENAL_ARCH_SNAPSHOT=off.
+ARCH_SNAPSHOT="${ARSENAL_ARCH_SNAPSHOT:-2026/06/23}"
+if [[ "${ARCH_SNAPSHOT}" != "off" ]]; then
+    c_log "Pinning Arch mirror to ALA snapshot ${ARCH_SNAPSHOT} (set ARSENAL_ARCH_SNAPSHOT=off to disable)…"
+    # Single-quoted format keeps pacman's $repo/$arch literal; only the date expands.
+    printf 'Server=https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "${ARCH_SNAPSHOT}" \
+        > /etc/pacman.d/mirrorlist
+fi
+
+# -----------------------------------------------------------------------------
 # 1. Build dependencies
 # -----------------------------------------------------------------------------
 c_log "Installing build dependencies (archiso, git, curl)…"
