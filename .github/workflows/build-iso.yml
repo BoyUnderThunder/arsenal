@@ -16,6 +16,7 @@ on:
     branches: ["**"]
     paths:
       - "profile/**"
+      - "cli/**"
       - "build.sh"
       - "tools/**"
       - ".github/workflows/build-iso.yml"
