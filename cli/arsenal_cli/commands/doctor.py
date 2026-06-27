@@ -77,11 +77,15 @@ def check_internet() -> Check:
 
 
 def check_disk() -> Check:
-    total, _used, free = shutil.disk_usage("/")
+    # On the live ISO, `/` is an overlay whose writable layer is a RAM-backed
+    # cowspace; statvfs("/") can report the read-only squashfs (~0 free), a
+    # false alarm. Measure the writable cowspace instead when it is mounted.
+    path = "/run/archiso/cowspace" if os.path.ismount("/run/archiso/cowspace") else "/"
+    total, _used, free = shutil.disk_usage(path)
     free_gb = free / 1e9
     pct = free / total * 100 if total else 0
     status = ui.Status.OK if free_gb > 5 else ui.Status.WARN if free_gb > 1 else ui.Status.FAIL
-    return Check("Disk space", status, f"{free_gb:.1f} GB free ({pct:.0f}%) on /")
+    return Check("Disk space", status, f"{free_gb:.1f} GB free ({pct:.0f}%) on {path}")
 
 
 def check_memory() -> Check:

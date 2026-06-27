@@ -48,14 +48,14 @@ aae="$(aa-status --enforced 2>/dev/null || echo 0)"
 emit "[INFO] AppArmor enforced profiles: ${aae:-0}"
 
 dr_out="$(arsenal doctor 2>&1)"; dr=$?
-# On failure, surface the offending line so CI shows *why* (an exec error, or
-# which doctor check is FAIL) instead of a bare return code.
-dr_obs="rc=$dr"
+chk "arsenal doctor exit 0"       '[[ "$dr" == "0" ]]'                 "rc=$dr"
+# On failure, echo the full doctor report to the serial console so CI shows
+# exactly which check is FAIL (or the exec error) without another build round.
 if [ "$dr" != 0 ]; then
-    dr_fail="$(printf '%s\n' "$dr_out" | grep -iE 'fail|denied|not found|error' | head -n1)"
-    dr_obs="rc=$dr | ${dr_fail:-${dr_out%%$'\n'*}}"
+    emit "----- arsenal doctor output (rc=$dr) -----"
+    printf '%s\n' "$dr_out" | while IFS= read -r ln; do emit "  doctor| $ln"; done
+    emit "-------------------------------------------"
 fi
-chk "arsenal doctor exit 0"       '[[ "$dr" == "0" ]]'                 "$dr_obs"
 
 # Weapon launchers are defined for login shells by /etc/profile.d; source them
 # here so we can confirm a sample resolve to their real tools.
