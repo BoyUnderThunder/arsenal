@@ -155,15 +155,37 @@ fi
 # -----------------------------------------------------------------------------
 c_log "Validating that every package resolves against the repos…"
 mapfile -t PKGS < <(sed -e 's/#.*//' -e 's/[[:space:]]\+$//' -e '/^[[:space:]]*$/d' "${PROFILE}/packages.x86_64")
-# pacman prints the offending package name(s) AND any dependency breakage to
-# stdout, not stderr — so capture both streams or the cause is lost.
-if ! pacman -Sp --noconfirm "${PKGS[@]}" >/tmp/arsenal-resolve.err 2>&1; then
-    c_log "Package resolution failed — pacman output:"
-    grep -iE 'target not found|could not find|could not satisfy|unable to satisfy|breaks dependency|requires|conflicting' /tmp/arsenal-resolve.err >&2 || true
-    echo "----- full pacman resolve log -----" >&2
-    cat /tmp/arsenal-resolve.err >&2
-    c_die "fix the offending names in profile/packages.x86_64 and rebuild."
-fi
+# Resolve the full list, tolerating *transient* upstream repo skew. Rolling
+# repos occasionally serve a partially-updated [core]: e.g. a systemd point
+# release lands before its split package systemd-sysvcompat is rebuilt, which
+# breaks `base` for everyone until maintainers catch up (usually well under an
+# hour). pacman prints the offending name(s)/dependency breakage to stdout (not
+# stderr), so capture both streams. Fail FAST on genuine errors (a bad package
+# name -> "target not found"); only wait-and-retry on dependency-satisfaction
+# skew, refreshing the db each round so the upstream fix is picked up live.
+resolve_attempt=0
+resolve_max=12
+resolve_wait=300
+while :; do
+    if pacman -Sy >/tmp/arsenal-sync.err 2>&1 \
+       && pacman -Sp --noconfirm "${PKGS[@]}" >/tmp/arsenal-resolve.err 2>&1; then
+        break
+    fi
+    if grep -qiE 'target not found|could not find' /tmp/arsenal-resolve.err; then
+        c_log "Package resolution failed — unknown package name(s):"
+        grep -iE 'target not found|could not find' /tmp/arsenal-resolve.err >&2
+        c_die "fix the offending names in profile/packages.x86_64 and rebuild."
+    fi
+    resolve_attempt=$((resolve_attempt + 1))
+    if ((resolve_attempt >= resolve_max)); then
+        c_log "Package resolution still failing after ${resolve_max} tries — pacman output:"
+        cat /tmp/arsenal-resolve.err >&2
+        c_die "repos did not become consistent in time (transient upstream skew?). Re-run later."
+    fi
+    c_log "Resolution failed — likely transient upstream repo skew; retry ${resolve_attempt}/${resolve_max} in ${resolve_wait}s. Detail:"
+    grep -iE 'could not satisfy|breaks dependency|requires|conflicting' /tmp/arsenal-resolve.err >&2 || cat /tmp/arsenal-resolve.err >&2
+    sleep "${resolve_wait}"
+done
 c_log "All $(printf '%s\n' "${PKGS[@]}" | wc -l) package entries resolve."
 
 # -----------------------------------------------------------------------------
