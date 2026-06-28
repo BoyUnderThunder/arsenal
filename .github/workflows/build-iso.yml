@@ -91,6 +91,7 @@ jobs:
           path: |
             /mnt/out/*.lock
             /mnt/out/*.cdx.json
+            /mnt/out/*.spdx.json
           retention-days: 30
           if-no-files-found: warn
 

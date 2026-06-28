@@ -23,6 +23,7 @@ import argparse
 import datetime as _dt
 import hashlib
 import json
+import re
 import sys
 import uuid
 
@@ -83,6 +84,62 @@ def build_sbom(pkgs, os_name, os_version, arch, snapshot):
     }
 
 
+def build_spdx(pkgs, os_name, os_version, arch, snapshot):
+    now = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    digest = hashlib.sha256(
+        ("\n".join(f"{n} {v}" for n, v in pkgs) + f"|{os_name}|{os_version}|{arch}|spdx").encode()
+    ).hexdigest()
+    namespace = (
+        f"https://github.com/BoyUnderThunder/arsenal/spdx/{os_name}-{os_version}-"
+        + str(uuid.UUID(digest[:32]))
+    )
+
+    packages = []
+    ids = []
+    for i, (name, version) in enumerate(pkgs):
+        # SPDXIDs allow only letters, digits, '.' and '-'; sanitise and index to
+        # keep them unique even when distinct names collide after sanitising.
+        safe = re.sub(r"[^A-Za-z0-9.\-]", "-", name)
+        spdxid = f"SPDXRef-Package-{safe}-{i}"
+        ids.append(spdxid)
+        packages.append(
+            {
+                "name": name,
+                "SPDXID": spdxid,
+                "versionInfo": version,
+                "downloadLocation": "NOASSERTION",
+                "filesAnalyzed": False,
+                "licenseConcluded": "NOASSERTION",
+                "licenseDeclared": "NOASSERTION",
+                "copyrightText": "NOASSERTION",
+                "externalRefs": [
+                    {
+                        "referenceCategory": "PACKAGE-MANAGER",
+                        "referenceType": "purl",
+                        "referenceLocator": f"pkg:alpm/arch/{name}@{version}?arch={arch}",
+                    }
+                ],
+            }
+        )
+
+    doc = {
+        "spdxVersion": "SPDX-2.3",
+        "dataLicense": "CC0-1.0",
+        "SPDXID": "SPDXRef-DOCUMENT",
+        "name": f"{os_name}-{os_version}",
+        "documentNamespace": namespace,
+        "creationInfo": {
+            "created": now,
+            "creators": ["Tool: gen_sbom.py-1", "Organization: Arsenal"],
+        },
+        "packages": packages,
+        "documentDescribes": ids,
+    }
+    if snapshot:
+        doc["creationInfo"]["comment"] = f"Arch Linux Archive snapshot: {snapshot}"
+    return doc
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--os-name", default="arsenal")
@@ -91,6 +148,7 @@ def main(argv=None) -> int:
     ap.add_argument("--snapshot", default="", help="Arch Linux Archive snapshot date, for provenance")
     ap.add_argument("--lock", required=True, help="path to write the lockfile")
     ap.add_argument("--sbom", required=True, help="path to write the CycloneDX JSON SBOM")
+    ap.add_argument("--spdx", default="", help="optional path to also write an SPDX 2.3 JSON SBOM")
     args = ap.parse_args(argv)
 
     pkgs = parse_packages(sys.stdin)
@@ -112,7 +170,14 @@ def main(argv=None) -> int:
         json.dump(build_sbom(pkgs, args.os_name, args.os_version, args.arch, args.snapshot), fh, indent=2)
         fh.write("\n")
 
-    print(f"gen_sbom: wrote {args.lock} and {args.sbom} ({len(pkgs)} packages)", file=sys.stderr)
+    written = [args.lock, args.sbom]
+    if args.spdx:
+        with open(args.spdx, "w", encoding="utf-8") as fh:
+            json.dump(build_spdx(pkgs, args.os_name, args.os_version, args.arch, args.snapshot), fh, indent=2)
+            fh.write("\n")
+        written.append(args.spdx)
+
+    print(f"gen_sbom: wrote {', '.join(written)} ({len(pkgs)} packages)", file=sys.stderr)
     return 0
 
 

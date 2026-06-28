@@ -58,11 +58,12 @@ Every build emits supply-chain provenance next to the ISO, uploaded as the
 
 - **Lockfile** `<iso>.lock` — exact name+version of every installed package
   (the full dependency closure, read from the built image's pacman DB), sorted
-  for stable diffs between builds. Commit the released build's lockfile as
-  `manifests/<tag>.lock` so a tag's exact contents are auditable.
-- **SBOM** `<iso>.cdx.json` — a CycloneDX 1.5 bill of materials with a
-  `pkg:alpm` PURL per package and the Arch Linux Archive snapshot date recorded
-  in `metadata.properties`.
+  for stable diffs between builds. `release.yml` commits the released build's
+  lockfile as `manifests/<tag>.lock` automatically (best-effort) so a tag's
+  exact contents are auditable from the repo.
+- **SBOM** — both `<iso>.cdx.json` (CycloneDX 1.5) and `<iso>.spdx.json`
+  (SPDX 2.3), each with a `pkg:alpm` PURL per package and the Arch Linux Archive
+  snapshot recorded in the document metadata.
 
 Builds pin the Arch repos to a dated ALA snapshot (`ARSENAL_ARCH_SNAPSHOT`,
 default set in `build.sh`; override or set `off` to disable), so a rebuild from

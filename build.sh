@@ -239,9 +239,10 @@ if [[ -n "${ISO}" && -n "${AIROOTFS}" && -d "${AIROOTFS}/var/lib/pacman/local" ]
     if pacman -Q --dbpath "${AIROOTFS}/var/lib/pacman" > "${WORK}/pkglist.txt" 2>/dev/null \
        && python "${HERE}/tools/gen_sbom.py" \
             --os-name arsenal --os-version "${VERSION}" --arch x86_64 --snapshot "${SNAP_ARG}" \
-            --lock "${OUT}/${BASE}.lock" --sbom "${OUT}/${BASE}.cdx.json" < "${WORK}/pkglist.txt"; then
+            --lock "${OUT}/${BASE}.lock" --sbom "${OUT}/${BASE}.cdx.json" \
+            --spdx "${OUT}/${BASE}.spdx.json" < "${WORK}/pkglist.txt"; then
         c_log "Provenance written:"
-        ls -lh "${OUT}/${BASE}.lock" "${OUT}/${BASE}.cdx.json"
+        ls -lh "${OUT}/${BASE}.lock" "${OUT}/${BASE}.cdx.json" "${OUT}/${BASE}.spdx.json"
     else
         c_log "WARN: provenance generation failed (non-fatal) — ISO is unaffected."
     fi

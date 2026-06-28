@@ -73,7 +73,7 @@ jobs:
           # One checksum manifest over every published file (parts + provenance),
           # so a single (optionally signed) file verifies the whole release.
           sha256sum "${BASE}".part* > SHA256SUMS
-          for f in *.lock *.cdx.json; do [[ -e "$f" ]] && sha256sum "$f" >> SHA256SUMS; done
+          for f in *.lock *.cdx.json *.spdx.json; do [[ -e "$f" ]] && sha256sum "$f" >> SHA256SUMS; done
           echo "---- SHA256SUMS ----"; cat SHA256SUMS
           {
             echo "base=${BASE}"
@@ -138,7 +138,7 @@ jobs:
           # Always publish: parts + whole-ISO checksum + the SHA256SUMS manifest.
           ASSETS=( "${BASE}".part* "${BASE}.sha256" SHA256SUMS )
           # Optionally add provenance (if the build produced it) and signatures (if signed).
-          for f in "${BASE}.lock" "${BASE}.cdx.json" SHA256SUMS.asc "${BASE}.sha256.asc"; do
+          for f in "${BASE}.lock" "${BASE}.cdx.json" "${BASE}.spdx.json" SHA256SUMS.asc "${BASE}.sha256.asc"; do
             [[ -e "$f" ]] && ASSETS+=( "$f" )
           done
           echo "Release assets:"; printf '  %s\n' "${ASSETS[@]}"
@@ -149,3 +149,20 @@ jobs:
             --notes-file notes.md
           echo "Release published:"
           gh release view "${TAG}" --repo "${{ github.repository }}" --json url --jq .url
+
+      - name: Record lockfile in manifests/
+        # Best-effort: commit the released build's lockfile as manifests/<tag>.lock
+        # so each tag's exact package set is auditable from the repo. Never fail
+        # the release over this (e.g. if the branch is protected).
+        continue-on-error: true
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          LOCK="$(find /mnt/rel -maxdepth 1 -name '*.lock' | head -n1)"
+          [ -n "${LOCK}" ] || { echo "no lockfile to record"; exit 0; }
+          mkdir -p manifests
+          cp "${LOCK}" "manifests/${TAG}.lock"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "manifests/${TAG}.lock"
+          git commit -m "release: record package lockfile for ${TAG}" || { echo "nothing to commit"; exit 0; }
+          git push origin "HEAD:${{ github.ref_name }}" || echo "push failed (branch protected?) — lockfile is still a release asset"
