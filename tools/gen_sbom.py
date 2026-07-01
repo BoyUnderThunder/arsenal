@@ -140,7 +140,7 @@ def build_spdx(pkgs, os_name, os_version, arch, snapshot):
     return doc
 
 
-def main(argv=None) -> int:
+def main(argv=None, stdin=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--os-name", default="arsenal")
     ap.add_argument("--os-version", required=True)
@@ -151,7 +151,7 @@ def main(argv=None) -> int:
     ap.add_argument("--spdx", default="", help="optional path to also write an SPDX 2.3 JSON SBOM")
     args = ap.parse_args(argv)
 
-    pkgs = parse_packages(sys.stdin)
+    pkgs = parse_packages(stdin if stdin is not None else sys.stdin)
     if not pkgs:
         print("gen_sbom: no packages on stdin", file=sys.stderr)
         return 2
