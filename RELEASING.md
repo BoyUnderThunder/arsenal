@@ -40,24 +40,49 @@ attached and the tag points at the `main` commit you built from.
 ## What users do with a release
 
 ```bash
-# download every *.iso.part* and the .sha256 into one folder, then:
+# download every *.iso.part*, the .sha256, and SHA256SUMS into one folder, then:
+sha256sum -c SHA256SUMS                               # verifies the parts + provenance
+# if SHA256SUMS.asc is attached, the release is signed — import the public key, then:
+gpg --verify SHA256SUMS.asc SHA256SUMS                # must print: Good signature
 cat arsenal-<tag>-x86_64.iso.part?? > arsenal-<tag>-x86_64.iso
 sha256sum -c arsenal-<tag>-x86_64.iso.sha256          # must print: OK
 sudo dd if=arsenal-<tag>-x86_64.iso of=/dev/sdX bs=4M status=progress oflag=sync
 ```
-(or feed the reassembled `.iso` to Ventoy / Rufus / balenaEtcher).
+(or feed the reassembled `.iso` to Ventoy / Rufus / balenaEtcher). The package
+lockfile (`*.lock`) and CycloneDX SBOM (`*.cdx.json`) are attached for auditing.
 
-## Reproducibility & provenance (roadmap: Tier 1)
+## Reproducibility & provenance
 
-Planned additions, documented here as they land:
-- **Per-release lockfile** `manifests/<tag>.lock` (exact name+version of every
-  installed package) and an **SBOM** (CycloneDX/SPDX) release asset, with a
-  documented rebuild path.
-- **Signing:** a detached GPG signature for the ISO and each split part, a
-  signed `SHA256SUMS.asc`, and signed git tags, with `gpg --verify` steps in the
-  release notes. (Requires a project signing key in CI secrets —
-  `GPG_PRIVATE_KEY` / `GPG_PASSPHRASE` — and the public key published for
-  verification.)
+Every build emits supply-chain provenance next to the ISO, uploaded as the
+**`arsenal-provenance`** artifact (see `build-iso.yml`):
+
+- **Lockfile** `<iso>.lock` — exact name+version of every installed package
+  (the full dependency closure, read from the built image's pacman DB), sorted
+  for stable diffs between builds. `release.yml` commits the released build's
+  lockfile as `manifests/<tag>.lock` automatically (best-effort) so a tag's
+  exact contents are auditable from the repo.
+- **SBOM** — both `<iso>.cdx.json` (CycloneDX 1.5) and `<iso>.spdx.json`
+  (SPDX 2.3), each with a `pkg:alpm` PURL per package and the Arch Linux Archive
+  snapshot recorded in the document metadata.
+
+Builds pin the Arch repos to a dated ALA snapshot (`ARSENAL_ARCH_SNAPSHOT`,
+default set in `build.sh`; override or set `off` to disable), so a rebuild from
+the same commit resolves the same Arch package versions. BlackArch has no dated
+archive and stays rolling.
+
+Each release also publishes a **`SHA256SUMS`** manifest covering every part and
+provenance file, plus the lockfile and SBOM as release assets.
+
+**Signing** is wired into `release.yml` but inert until a project key is
+configured. To activate it:
+1. Add repository secrets `GPG_PRIVATE_KEY` (an ASCII-armored private key) and
+   `GPG_PASSPHRASE`.
+2. Publish the corresponding **public** key (in the repo and/or release notes)
+   so downloaders can import it for verification.
+
+With the secret present, every release gains a detached, armored
+`SHA256SUMS.asc` (and `<iso>.sha256.asc`); without it, releases publish unsigned
+exactly as before. Signed git tags remain a manual step (`git tag -s <tag>`).
 
 ## Notes
 - Build artifacts (`work/`, `out/`, `*.iso`) are gitignored; never commit them.

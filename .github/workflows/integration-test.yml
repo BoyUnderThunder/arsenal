@@ -1,0 +1,52 @@
+name: integration-test-arsenal
+
+# Post-boot hardening verification against an already-built arsenal-iso artifact
+# (no rebuild). Downloads the ISO from a given build run and asserts the Fortress
+# is live (hardened kernel, AppArmor, nftables default-deny, sysctls, doctor,
+# weapon mappings). Lets us verify the integration test quickly during dev.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Run ID that produced the arsenal-iso artifact"
+        required: true
+        default: "27930405747"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare disk
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache || true
+          sudo mkdir -p /mnt/iso && sudo chmod 0777 /mnt/iso
+          df -h /
+
+      - name: Download ISO artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: arsenal-iso
+          path: /mnt/iso
+          run-id: ${{ github.event.inputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Install QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-system-x86
+
+      - name: Integration test (hardening posture)
+        run: |
+          ISO="$(find /mnt/iso -name '*.iso' | head -n1)"
+          echo "Testing: ${ISO}"; ls -lh "${ISO}"
+          chmod +x tools/integration-test.sh
+          sudo --preserve-env=SMOKE_MEM tools/integration-test.sh "${ISO}" 1200

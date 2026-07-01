@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# =============================================================================
+#  Arsenal hardening self-test
+# =============================================================================
+#  Verifies the Fortress is actually LIVE (not merely configured). Run it any
+#  time as `arsenal-selftest`, or let it run automatically at boot: a login-shell
+#  hook (/etc/profile.d/zz-arsenal-selftest.sh) runs it when the kernel cmdline
+#  contains the `arsenalselftest` token (used by tools/integration-test.sh in CI).
+#
+#  Prints one line per check and a final `ARSENAL-SELFTEST: PASS|FAIL` sentinel
+#  to both stdout and the serial console, and exits with the failure count.
+# =============================================================================
+set -o pipefail
+
+SERIAL=/dev/ttyS0
+emit() {
+    printf '%s\n' "$*"
+    [ -w "$SERIAL" ] && printf '%s\n' "$*" > "$SERIAL" 2>/dev/null || true
+}
+
+fails=0
+chk() { # label  test-expression  observed
+    if eval "$2"; then emit "[PASS] $1 ($3)"
+    else emit "[FAIL] $1 ($3)"; fails=$((fails + 1)); fi
+}
+
+emit "===== Arsenal hardening self-test ====="
+
+krel="$(uname -r)"
+chk "hardened kernel running"     '[[ "$krel" == *hardened* ]]'        "$krel"
+
+kptr="$(sysctl -n kernel.kptr_restrict 2>/dev/null)"
+chk "kptr_restrict = 2"           '[[ "$kptr" == "2" ]]'               "${kptr:-?}"
+ptr="$(sysctl -n kernel.yama.ptrace_scope 2>/dev/null)"
+chk "yama.ptrace_scope = 1"       '[[ "$ptr" == "1" ]]'                "${ptr:-?}"
+bpf="$(sysctl -n net.core.bpf_jit_harden 2>/dev/null)"
+chk "bpf_jit_harden = 2"          '[[ "$bpf" == "2" ]]'                "${bpf:-?}"
+
+nft="$(nft list ruleset 2>/dev/null | grep -c 'policy drop')"
+chk "nftables input policy drop"  '[[ "${nft:-0}" -ge 1 ]]'            "${nft:-0} match(es)"
+
+aam=0; [ -d /sys/module/apparmor ] && aam=1
+chk "AppArmor module loaded"      '[[ "$aam" == "1" ]]'                "$aam"
+aaa="$(systemctl is-active apparmor 2>/dev/null)"
+chk "apparmor.service active"     '[[ "$aaa" == "active" ]]'           "${aaa:-?}"
+# Enforced-profile count is environment-dependent; report it (informational).
+aae="$(aa-status --enforced 2>/dev/null || echo 0)"
+emit "[INFO] AppArmor enforced profiles: ${aae:-0}"
+
+dr_out="$(arsenal doctor 2>&1)"; dr=$?
+chk "arsenal doctor exit 0"       '[[ "$dr" == "0" ]]'                 "rc=$dr"
+# On failure, echo the full doctor report to the serial console so CI shows
+# exactly which check is FAIL (or the exec error) without another build round.
+if [ "$dr" != 0 ]; then
+    emit "----- arsenal doctor output (rc=$dr) -----"
+    printf '%s\n' "$dr_out" | while IFS= read -r ln; do emit "  doctor| $ln"; done
+    emit "-------------------------------------------"
+fi
+
+# Weapon launchers are defined for login shells by /etc/profile.d; source them
+# here so we can confirm a sample resolve to their real tools.
+# shellcheck source=/dev/null
+[ -r /etc/profile.d/arsenal-armory.sh ] && . /etc/profile.d/arsenal-armory.sh 2>/dev/null
+for pair in sniper:nmap tower:burpsuite hunter:bloodhound; do
+    wn="${pair%%:*}"; tb="${pair##*:}"
+    n="$(type "$wn" 2>/dev/null | grep -c "$tb")"
+    chk "weapon ${wn} -> ${tb}"   '[[ "${n:-0}" -ge 1 ]]'             "${n:-0}"
+done
+
+emit "======================================="
+if [ "$fails" -eq 0 ]; then emit "ARSENAL-SELFTEST: PASS"; else emit "ARSENAL-SELFTEST: FAIL (${fails})"; fi
+exit "$fails"

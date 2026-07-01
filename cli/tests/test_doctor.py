@@ -55,6 +55,20 @@ class TestDoctorChecks(unittest.TestCase):
         with mock.patch.object(doctor.runner, "run", side_effect=fake_run):
             self.assertEqual(doctor.check_firewall().status, ui.Status.FAIL)
 
+    def test_firewall_inactive_service_but_rules_loaded(self):
+        # Live ISO: nftables.service is a oneshot that exits after loading rules,
+        # so it reads "inactive" while the default-deny ruleset is up. The loaded
+        # ruleset is the ground truth, so this must be OK, not FAIL.
+        def fake_run(cmd, **kw):
+            if cmd[:2] == ["systemctl", "is-active"]:
+                return _result("inactive\n", rc=3)
+            if cmd[0] == "nft":
+                return _result("chain input { type filter hook input priority filter; policy drop; }")
+            return _result()
+
+        with mock.patch.object(doctor.runner, "run", side_effect=fake_run):
+            self.assertEqual(doctor.check_firewall().status, ui.Status.OK)
+
     def test_updates_available(self):
         with mock.patch.object(doctor.runner, "which", return_value="/usr/bin/checkupdates"):
             with mock.patch.object(doctor.runner, "run", return_value=_result("pkg1 1->2\npkg2 3->4\n")):

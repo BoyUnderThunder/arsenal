@@ -33,11 +33,41 @@ c_die() { printf '\033[1;31m[arsenal:ERROR]\033[0m %s\n' "$*" >&2; exit 1; }
 command -v pacman >/dev/null 2>&1 || c_die "pacman not found — build on Arch Linux or in an archlinux container."
 
 # -----------------------------------------------------------------------------
+# 0. Pin the Arch mirror to a reproducible snapshot
+# -----------------------------------------------------------------------------
+# Rolling Arch occasionally serves an internally-inconsistent [core] (e.g. a
+# systemd point release landing before its split package systemd-sysvcompat is
+# rebuilt — which breaks `base` for everyone until maintainers catch up).
+# Pinning the Arch mirror to a dated Arch Linux Archive (ALA) snapshot makes the
+# build both reproducible and immune to those transient windows. BlackArch has
+# no dated archive, so it stays on its rolling mirror; the small version skew
+# against the pinned Arch base is harmless in practice. Override the date with
+# ARSENAL_ARCH_SNAPSHOT=YYYY/MM/DD, or disable pinning with ARSENAL_ARCH_SNAPSHOT=off.
+ARCH_SNAPSHOT="${ARSENAL_ARCH_SNAPSHOT:-2026/06/30}"
+# IMPORTANT: apply this AFTER strap.sh (see section 2), not here. BlackArch's
+# strap.sh fetches its own mirror list and clobbers a pin set now, silently
+# reverting the build to rolling Arch — so we define it as a function and call
+# it once strap has run.
+pin_arch_mirror() {
+    if [[ "${ARCH_SNAPSHOT}" == "off" ]]; then
+        c_log "Arch snapshot pin disabled (rolling); syncing current mirrors."
+        pacman -Sy
+        return 0
+    fi
+    c_log "Pinning Arch mirror to ALA snapshot ${ARCH_SNAPSHOT} (ARSENAL_ARCH_SNAPSHOT=off to disable)…"
+    # Single-quoted format keeps pacman's $repo/$arch literal; only the date expands.
+    printf 'Server=https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "${ARCH_SNAPSHOT}" \
+        > /etc/pacman.d/mirrorlist
+    pacman -Sy
+    c_log "Effective [core] mirror: $(pacman-conf --repo core 2>/dev/null | awk '/^Server/{print $3; exit}' || echo '?')"
+}
+
+# -----------------------------------------------------------------------------
 # 1. Build dependencies
 # -----------------------------------------------------------------------------
-c_log "Installing build dependencies (archiso, git, curl)…"
+c_log "Installing build dependencies (archiso, git, curl, python)…"
 pacman -Sy --needed --noconfirm archlinux-keyring
-pacman -S  --needed --noconfirm archiso git curl
+pacman -S  --needed --noconfirm archiso git curl python
 
 [[ -d ${RELENG} ]] || c_die "releng profile missing at ${RELENG} (is 'archiso' installed?)"
 
@@ -55,7 +85,11 @@ if [[ "${SKIP_STRAP:-0}" != "1" ]] && ! grep -q '^\[blackarch\]' /etc/pacman.con
     chmod +x /tmp/strap.sh
     /tmp/strap.sh
 fi
-pacman -Sy
+
+# Pin the Arch mirror NOW — after strap.sh, so BlackArch's fetched mirror list
+# cannot clobber it. This is what makes the reproducible snapshot take effect
+# (and it does the post-strap `pacman -Sy` refresh).
+pin_arch_mirror
 
 # -----------------------------------------------------------------------------
 # 3. Assemble profile: releng base + Arsenal overlay
@@ -136,8 +170,17 @@ if ((${#BOOTCFG[@]})); then
     sed -i 's/Arch Linux/Arsenal/g' "${BOOTCFG[@]}"
 fi
 
-# Make sure our scripts are executable inside the image.
-chmod 0755 "${PROFILE}/airootfs/usr/local/bin/arsenal"
+# Make our overlay scripts executable in the *built* image. A chmod on the
+# profile copy is not enough on its own: archiso sets airootfs permissions from
+# profiledef.sh's file_permissions array, and anything not listed there can land
+# non-executable in the squashfs (which is why `arsenal` and `arsenal-selftest`
+# showed up at boot as "permission denied" / rc=126). Add explicit entries —
+# the authoritative fix — and keep the chmod so the profile tree itself is sane.
+chmod 0755 "${PROFILE}/airootfs/usr/local/bin/arsenal" \
+           "${PROFILE}/airootfs/usr/local/bin/arsenal-selftest"
+sed -i '/file_permissions=(/a\  ["/usr/local/bin/arsenal"]="0:0:755"\n  ["/usr/local/bin/arsenal-selftest"]="0:0:755"' "${PROFILE}/profiledef.sh"
+grep -q 'usr/local/bin/arsenal-selftest' "${PROFILE}/profiledef.sh" \
+    || c_die "could not inject file_permissions into profiledef.sh (unexpected format)."
 
 # -----------------------------------------------------------------------------
 # 7. BlackArch repo for the build's pacman
@@ -152,11 +195,42 @@ fi
 # -----------------------------------------------------------------------------
 c_log "Validating that every package resolves against the repos…"
 mapfile -t PKGS < <(sed -e 's/#.*//' -e 's/[[:space:]]\+$//' -e '/^[[:space:]]*$/d' "${PROFILE}/packages.x86_64")
-if ! pacman -Sp --noconfirm "${PKGS[@]}" >/dev/null 2>/tmp/arsenal-resolve.err; then
-    c_log "Package resolution failed — unresolved targets:"
-    grep -iE 'target not found|could not find' /tmp/arsenal-resolve.err >&2 || cat /tmp/arsenal-resolve.err >&2
-    c_die "fix the offending names in profile/packages.x86_64 and rebuild."
-fi
+# Resolve the full list, tolerating *transient* upstream repo skew. Rolling
+# repos occasionally serve a partially-updated [core]: e.g. a systemd point
+# release lands before its split package systemd-sysvcompat is rebuilt, which
+# breaks `base` for everyone until maintainers catch up (usually well under an
+# hour). pacman prints the offending name(s)/dependency breakage to stdout (not
+# stderr), so capture both streams. Fail FAST on genuine errors (a bad package
+# name -> "target not found"); only wait-and-retry on dependency-satisfaction
+# skew, refreshing the db each round so the upstream fix is picked up live.
+resolve_attempt=0
+# When pinned, the Arch snapshot is static: a dependency conflict will NOT fix
+# itself by waiting, so fail fast (one quick retry still covers BlackArch db
+# propagation lag). Only the rolling (unpinned) case benefits from riding out a
+# transient upstream window for up to an hour.
+resolve_max=12
+[[ "${ARCH_SNAPSHOT}" != "off" ]] && resolve_max=2
+resolve_wait=300
+while :; do
+    if pacman -Sy >/tmp/arsenal-sync.err 2>&1 \
+       && pacman -Sp --noconfirm "${PKGS[@]}" >/tmp/arsenal-resolve.err 2>&1; then
+        break
+    fi
+    if grep -qiE 'target not found|could not find' /tmp/arsenal-resolve.err; then
+        c_log "Package resolution failed — unknown package name(s):"
+        grep -iE 'target not found|could not find' /tmp/arsenal-resolve.err >&2
+        c_die "fix the offending names in profile/packages.x86_64 and rebuild."
+    fi
+    resolve_attempt=$((resolve_attempt + 1))
+    if ((resolve_attempt >= resolve_max)); then
+        c_log "Package resolution still failing after ${resolve_max} tries — pacman output:"
+        cat /tmp/arsenal-resolve.err >&2
+        c_die "repos did not become consistent in time (transient upstream skew?). Re-run later."
+    fi
+    c_log "Resolution failed — likely transient upstream repo skew; retry ${resolve_attempt}/${resolve_max} in ${resolve_wait}s. Detail:"
+    grep -iE 'could not satisfy|breaks dependency|requires|conflicting' /tmp/arsenal-resolve.err >&2 || cat /tmp/arsenal-resolve.err >&2
+    sleep "${resolve_wait}"
+done
 c_log "All $(printf '%s\n' "${PKGS[@]}" | wc -l) package entries resolve."
 
 # -----------------------------------------------------------------------------
@@ -168,3 +242,30 @@ mkarchiso -v -w "${WORK}/tmp" -o "${OUT}" "${PROFILE}"
 
 c_log "Build complete:"
 ls -lh "${OUT}"/*.iso
+
+# -----------------------------------------------------------------------------
+# 10. Supply-chain provenance: lockfile + SBOM
+# -----------------------------------------------------------------------------
+# Record exactly what shipped, from the built airootfs's pacman DB (the full
+# dependency closure, not just the explicit package list). Best-effort: never
+# lose a built ISO over provenance.
+c_log "Generating provenance (lockfile + SBOM)…"
+ISO="$(find "${OUT}" -maxdepth 1 -name '*.iso' | head -n1)"
+AIROOTFS="$(find "${WORK}/tmp" -maxdepth 3 -type d -name airootfs 2>/dev/null | head -n1)"
+if [[ -n "${ISO}" && -n "${AIROOTFS}" && -d "${AIROOTFS}/var/lib/pacman/local" ]]; then
+    BASE="$(basename "${ISO}")"
+    VERSION="${BASE#arsenal-}"; VERSION="${VERSION%-x86_64.iso}"
+    SNAP_ARG=""; [[ "${ARCH_SNAPSHOT}" != "off" ]] && SNAP_ARG="${ARCH_SNAPSHOT}"
+    if pacman -Q --dbpath "${AIROOTFS}/var/lib/pacman" > "${WORK}/pkglist.txt" 2>/dev/null \
+       && python "${HERE}/tools/gen_sbom.py" \
+            --os-name arsenal --os-version "${VERSION}" --arch x86_64 --snapshot "${SNAP_ARG}" \
+            --lock "${OUT}/${BASE}.lock" --sbom "${OUT}/${BASE}.cdx.json" \
+            --spdx "${OUT}/${BASE}.spdx.json" < "${WORK}/pkglist.txt"; then
+        c_log "Provenance written:"
+        ls -lh "${OUT}/${BASE}.lock" "${OUT}/${BASE}.cdx.json" "${OUT}/${BASE}.spdx.json"
+    else
+        c_log "WARN: provenance generation failed (non-fatal) — ISO is unaffected."
+    fi
+else
+    c_log "WARN: ISO or airootfs pacman DB not found (airootfs='${AIROOTFS:-none}') — skipping provenance."
+fi

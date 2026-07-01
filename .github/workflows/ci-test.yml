@@ -29,13 +29,17 @@ jobs:
       - name: Lint (ruff)
         run: |
           python -m pip install --quiet "ruff==0.15.18"
-          cd cli
-          ruff check .
+          ruff check --config cli/pyproject.toml cli tools/gen_sbom.py tools/test_gen_sbom.py
 
       - name: Unit tests (stdlib unittest)
         run: |
           cd cli
           python -m unittest discover -s tests -t . -v
+
+      - name: Provenance tool tests (SBOM/lockfile generator)
+        run: |
+          cd tools
+          python -m unittest test_gen_sbom -v
 
       - name: CLI smoke
         run: |
@@ -49,5 +53,8 @@ jobs:
           sudo apt-get install -y --no-install-recommends shellcheck
           shellcheck -S warning \
             profile/airootfs/usr/local/bin/arsenal \
+            profile/airootfs/usr/local/bin/arsenal-selftest \
+            profile/airootfs/etc/profile.d/zz-arsenal-selftest.sh \
             tools/smoke-test.sh \
+            tools/integration-test.sh \
             build.sh
