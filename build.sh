@@ -43,13 +43,24 @@ command -v pacman >/dev/null 2>&1 || c_die "pacman not found — build on Arch L
 # no dated archive, so it stays on its rolling mirror; the small version skew
 # against the pinned Arch base is harmless in practice. Override the date with
 # ARSENAL_ARCH_SNAPSHOT=YYYY/MM/DD, or disable pinning with ARSENAL_ARCH_SNAPSHOT=off.
-ARCH_SNAPSHOT="${ARSENAL_ARCH_SNAPSHOT:-2026/06/23}"
-if [[ "${ARCH_SNAPSHOT}" != "off" ]]; then
-    c_log "Pinning Arch mirror to ALA snapshot ${ARCH_SNAPSHOT} (set ARSENAL_ARCH_SNAPSHOT=off to disable)…"
+ARCH_SNAPSHOT="${ARSENAL_ARCH_SNAPSHOT:-2026/06/30}"
+# IMPORTANT: apply this AFTER strap.sh (see section 2), not here. BlackArch's
+# strap.sh fetches its own mirror list and clobbers a pin set now, silently
+# reverting the build to rolling Arch — so we define it as a function and call
+# it once strap has run.
+pin_arch_mirror() {
+    if [[ "${ARCH_SNAPSHOT}" == "off" ]]; then
+        c_log "Arch snapshot pin disabled (rolling); syncing current mirrors."
+        pacman -Sy
+        return 0
+    fi
+    c_log "Pinning Arch mirror to ALA snapshot ${ARCH_SNAPSHOT} (ARSENAL_ARCH_SNAPSHOT=off to disable)…"
     # Single-quoted format keeps pacman's $repo/$arch literal; only the date expands.
     printf 'Server=https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "${ARCH_SNAPSHOT}" \
         > /etc/pacman.d/mirrorlist
-fi
+    pacman -Sy
+    c_log "Effective [core] mirror: $(pacman-conf --repo core 2>/dev/null | awk '/^Server/{print $3; exit}' || echo '?')"
+}
 
 # -----------------------------------------------------------------------------
 # 1. Build dependencies
@@ -74,7 +85,11 @@ if [[ "${SKIP_STRAP:-0}" != "1" ]] && ! grep -q '^\[blackarch\]' /etc/pacman.con
     chmod +x /tmp/strap.sh
     /tmp/strap.sh
 fi
-pacman -Sy
+
+# Pin the Arch mirror NOW — after strap.sh, so BlackArch's fetched mirror list
+# cannot clobber it. This is what makes the reproducible snapshot take effect
+# (and it does the post-strap `pacman -Sy` refresh).
+pin_arch_mirror
 
 # -----------------------------------------------------------------------------
 # 3. Assemble profile: releng base + Arsenal overlay
@@ -189,7 +204,12 @@ mapfile -t PKGS < <(sed -e 's/#.*//' -e 's/[[:space:]]\+$//' -e '/^[[:space:]]*$
 # name -> "target not found"); only wait-and-retry on dependency-satisfaction
 # skew, refreshing the db each round so the upstream fix is picked up live.
 resolve_attempt=0
+# When pinned, the Arch snapshot is static: a dependency conflict will NOT fix
+# itself by waiting, so fail fast (one quick retry still covers BlackArch db
+# propagation lag). Only the rolling (unpinned) case benefits from riding out a
+# transient upstream window for up to an hour.
 resolve_max=12
+[[ "${ARCH_SNAPSHOT}" != "off" ]] && resolve_max=2
 resolve_wait=300
 while :; do
     if pacman -Sy >/tmp/arsenal-sync.err 2>&1 \
