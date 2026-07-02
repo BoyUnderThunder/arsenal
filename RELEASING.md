@@ -39,17 +39,27 @@ attached and the tag points at the `main` commit you built from.
 
 ## What users do with a release
 
+Download every `*.iso.part*`, the `.sha256`, and `SHA256SUMS` (plus
+`SHA256SUMS.asc` if present) into one folder, then verify + reassemble in one
+step with the helper script:
+
 ```bash
-# download every *.iso.part*, the .sha256, and SHA256SUMS into one folder, then:
-sha256sum -c SHA256SUMS                               # verifies the parts + provenance
-# if SHA256SUMS.asc is attached, the release is signed — import the public key, then:
-gpg --verify SHA256SUMS.asc SHA256SUMS                # must print: Good signature
-cat arsenal-<tag>-x86_64.iso.part?? > arsenal-<tag>-x86_64.iso
-sha256sum -c arsenal-<tag>-x86_64.iso.sha256          # must print: OK
+tools/verify-release.sh /path/to/download-dir        # checks sums, signature, reassembles the ISO
 sudo dd if=arsenal-<tag>-x86_64.iso of=/dev/sdX bs=4M status=progress oflag=sync
 ```
+
+Or do it by hand:
+
+```bash
+sha256sum -c SHA256SUMS                               # verifies the parts + provenance
+gpg --verify SHA256SUMS.asc SHA256SUMS                # if signed — must print: Good signature
+cat arsenal-<tag>-x86_64.iso.part?? > arsenal-<tag>-x86_64.iso
+sha256sum -c arsenal-<tag>-x86_64.iso.sha256          # must print: OK
+```
+
 (or feed the reassembled `.iso` to Ventoy / Rufus / balenaEtcher). The package
-lockfile (`*.lock`) and CycloneDX SBOM (`*.cdx.json`) are attached for auditing.
+lockfile (`*.lock`) and CycloneDX/SPDX SBOMs are attached for auditing — see
+[docs/provenance.md](docs/provenance.md).
 
 ## Reproducibility & provenance
 

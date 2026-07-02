@@ -57,4 +57,5 @@ jobs:
             profile/airootfs/etc/profile.d/zz-arsenal-selftest.sh \
             tools/smoke-test.sh \
             tools/integration-test.sh \
+            tools/verify-release.sh \
             build.sh
