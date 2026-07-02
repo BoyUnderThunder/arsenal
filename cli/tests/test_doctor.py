@@ -69,6 +69,30 @@ class TestDoctorChecks(unittest.TestCase):
         with mock.patch.object(doctor.runner, "run", side_effect=fake_run):
             self.assertEqual(doctor.check_firewall().status, ui.Status.OK)
 
+    def test_hardening_sysctls_all_applied(self):
+        def fake_run(cmd, **kw):
+            return _result(doctor._HARDENING_SYSCTLS[cmd[-1]] + "\n")
+
+        with mock.patch.object(doctor.runner, "run", side_effect=fake_run):
+            self.assertEqual(doctor.check_hardening_sysctls().status, ui.Status.OK)
+
+    def test_hardening_sysctls_drift_warns(self):
+        def fake_run(cmd, **kw):
+            key = cmd[-1]
+            if key == "kernel.kptr_restrict":
+                return _result("0\n")  # hardening disabled -> drift
+            return _result(doctor._HARDENING_SYSCTLS[key] + "\n")
+
+        with mock.patch.object(doctor.runner, "run", side_effect=fake_run):
+            c = doctor.check_hardening_sysctls()
+            self.assertEqual(c.status, ui.Status.WARN)
+            self.assertIn("kptr_restrict", c.detail)
+
+    def test_hardening_sysctls_unavailable_is_info(self):
+        missing = runner.Result(["x"], 127, "", "", False, missing=True)
+        with mock.patch.object(doctor.runner, "run", return_value=missing):
+            self.assertEqual(doctor.check_hardening_sysctls().status, ui.Status.INFO)
+
     def test_updates_available(self):
         with mock.patch.object(doctor.runner, "which", return_value="/usr/bin/checkupdates"):
             with mock.patch.object(doctor.runner, "run", return_value=_result("pkg1 1->2\npkg2 3->4\n")):

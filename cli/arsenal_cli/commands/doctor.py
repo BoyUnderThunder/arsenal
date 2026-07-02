@@ -62,6 +62,49 @@ def check_firewall() -> Check:
     return Check("Firewall", ui.Status.FAIL, "nftables inactive, no default-deny ruleset")
 
 
+# Kernel-hardening sysctls Arsenal ships in
+# etc/sysctl.d/99-arsenal-hardening.conf — the security-relevant subset.
+# Keep in sync with that file.
+_HARDENING_SYSCTLS: dict[str, str] = {
+    "kernel.kptr_restrict": "2",
+    "kernel.dmesg_restrict": "1",
+    "kernel.yama.ptrace_scope": "1",
+    "kernel.unprivileged_bpf_disabled": "1",
+    "net.core.bpf_jit_harden": "2",
+    "kernel.perf_event_paranoid": "3",
+    "fs.suid_dumpable": "0",
+    "fs.protected_symlinks": "1",
+    "fs.protected_hardlinks": "1",
+}
+
+
+def check_hardening_sysctls() -> Check:
+    """Verify Arsenal's kernel-hardening sysctls are applied at runtime.
+
+    Posture reporting only: WARN (never FAIL) on drift, since the boot-time
+    self-test already gates the build on the critical values and doctor's exit
+    code must stay usable in scripts.
+    """
+    mismatched: list[str] = []
+    unavailable = 0
+    for key, want in _HARDENING_SYSCTLS.items():
+        res = runner.run(["sysctl", "-n", key], timeout=10)
+        if res.missing:
+            unavailable += 1
+            continue
+        got = res.stdout.strip()
+        if got != want:
+            mismatched.append(f"{key}={got or '?'}≠{want}")
+    total = len(_HARDENING_SYSCTLS)
+    if unavailable == total:
+        return Check("Kernel hardening sysctls", ui.Status.INFO, "sysctl unavailable")
+    if not mismatched:
+        return Check("Kernel hardening sysctls applied", ui.Status.OK, f"{total} values")
+    shown = ", ".join(mismatched[:3])
+    more = "" if len(mismatched) <= 3 else f" (+{len(mismatched) - 3} more)"
+    return Check("Kernel hardening sysctls", ui.Status.WARN, f"{len(mismatched)}/{total} not applied: {shown}{more}")
+
+
 def check_blackarch() -> Check:
     listing = runner.run(["pacman", "-Sl", "blackarch"], timeout=20)
     if listing.missing:
@@ -154,6 +197,7 @@ CHECKS: list[Callable[[], Check]] = [
     check_kernel,
     check_apparmor,
     check_firewall,
+    check_hardening_sysctls,
     check_blackarch,
     check_internet,
     check_disk,
