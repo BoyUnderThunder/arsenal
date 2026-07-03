@@ -106,6 +106,42 @@ def check_hardening_sysctls() -> Check:
     return Check("Kernel hardening sysctls", ui.Status.WARN, f"{len(mismatched)}/{total} not applied: {shown}{more}")
 
 
+# Kernel modules Arsenal blacklists in etc/modprobe.d/arsenal-blacklist.conf —
+# rarely-used, historically-abused protocols/filesystems. Keep in sync.
+_BLACKLISTED_MODULES: frozenset[str] = frozenset(
+    {
+        "dccp", "sctp", "rds", "tipc",
+        "cramfs", "freevxfs", "jffs2", "hfs", "hfsplus", "udf",
+        "firewire-core", "thunderbolt",
+    }
+)
+
+
+def check_module_blacklist() -> Check:
+    """WARN if any blacklisted attack-surface kernel module is loaded."""
+    res = runner.run(["lsmod"], timeout=10)
+    if res.missing:
+        return Check("Module blacklist", ui.Status.INFO, "lsmod unavailable")
+    # lsmod names use underscores; the blacklist uses hyphens — normalise both.
+    loaded = {ln.split()[0].replace("-", "_") for ln in res.stdout.splitlines()[1:] if ln.split()}
+    hits = sorted(m for m in _BLACKLISTED_MODULES if m.replace("-", "_") in loaded)
+    if not hits:
+        return Check("Module blacklist enforced", ui.Status.OK, f"{len(_BLACKLISTED_MODULES)} modules")
+    return Check("Module blacklist", ui.Status.WARN, "loaded: " + ", ".join(hits))
+
+
+def check_apparmor_enforced() -> Check:
+    """Report how many AppArmor profiles are in enforce mode."""
+    res = runner.run(["aa-status", "--enforced"], timeout=10)
+    if res.missing:
+        return Check("AppArmor enforce mode", ui.Status.INFO, "aa-status unavailable")
+    tok = res.stdout.strip().split()
+    n = int(tok[0]) if tok and tok[0].isdigit() else 0
+    if n > 0:
+        return Check("AppArmor enforce mode", ui.Status.OK, f"{n} profiles enforced")
+    return Check("AppArmor enforce mode", ui.Status.WARN, "no profiles in enforce mode")
+
+
 def check_blackarch() -> Check:
     listing = runner.run(["pacman", "-Sl", "blackarch"], timeout=20)
     if listing.missing:
@@ -199,6 +235,8 @@ CHECKS: list[Callable[[], Check]] = [
     check_apparmor,
     check_firewall,
     check_hardening_sysctls,
+    check_module_blacklist,
+    check_apparmor_enforced,
     check_blackarch,
     check_internet,
     check_disk,

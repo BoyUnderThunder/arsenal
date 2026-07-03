@@ -93,6 +93,30 @@ class TestDoctorChecks(unittest.TestCase):
         with mock.patch.object(doctor.runner, "run", return_value=missing):
             self.assertEqual(doctor.check_hardening_sysctls().status, ui.Status.INFO)
 
+    def test_module_blacklist_clean(self):
+        lsmod = "Module Size Used by\next4 900 3\nkvm 100 0\n"
+        with mock.patch.object(doctor.runner, "run", return_value=_result(lsmod)):
+            self.assertEqual(doctor.check_module_blacklist().status, ui.Status.OK)
+
+    def test_module_blacklist_hit(self):
+        # firewire_core (underscore form) must match the hyphen form in the list.
+        lsmod = "Module Size Used by\ndccp 40 0\nfirewire_core 80 0\n"
+        with mock.patch.object(doctor.runner, "run", return_value=_result(lsmod)):
+            c = doctor.check_module_blacklist()
+            self.assertEqual(c.status, ui.Status.WARN)
+            self.assertIn("dccp", c.detail)
+            self.assertIn("firewire-core", c.detail)
+
+    def test_apparmor_enforced_count(self):
+        with mock.patch.object(doctor.runner, "run", return_value=_result("78\n")):
+            c = doctor.check_apparmor_enforced()
+            self.assertEqual(c.status, ui.Status.OK)
+            self.assertIn("78", c.detail)
+
+    def test_apparmor_enforced_zero_warns(self):
+        with mock.patch.object(doctor.runner, "run", return_value=_result("0\n")):
+            self.assertEqual(doctor.check_apparmor_enforced().status, ui.Status.WARN)
+
     def test_updates_available(self):
         with mock.patch.object(doctor.runner, "which", return_value="/usr/bin/checkupdates"):
             with mock.patch.object(doctor.runner, "run", return_value=_result("pkg1 1->2\npkg2 3->4\n")):
