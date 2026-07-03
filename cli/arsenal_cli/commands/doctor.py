@@ -6,6 +6,7 @@ check is FAIL (so it is usable in scripts and CI).
 """
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import socket
@@ -222,14 +223,29 @@ def gather() -> list[Check]:
 
 
 def run(args) -> int:
-    print(ui.header("Arsenal Doctor"))
     results = gather()
     worst = ui.Status.OK
     for c in results:
-        ui.print_status(c.status, c.name, c.detail)
         if ui.SEVERITY[c.status] > ui.SEVERITY[worst]:
             worst = c.status
+    rc = 1 if worst == ui.Status.FAIL else 0
 
+    # Machine-readable output for monitoring / scripting / the dashboard.
+    if getattr(args, "json", False):
+        payload = {
+            "checks": [
+                {"name": c.name, "status": c.status.value, "detail": c.detail}
+                for c in results
+            ],
+            "summary": {s.value: sum(1 for c in results if c.status == s) for s in ui.Status},
+            "ok": rc == 0,
+        }
+        print(json.dumps(payload, indent=2))
+        return rc
+
+    print(ui.header("Arsenal Doctor"))
+    for c in results:
+        ui.print_status(c.status, c.name, c.detail)
     counts = {s: sum(1 for c in results if c.status == s) for s in ui.Status}
     print()
     print(
@@ -240,4 +256,4 @@ def run(args) -> int:
             ui.DIM,
         )
     )
-    return 1 if worst == ui.Status.FAIL else 0
+    return rc

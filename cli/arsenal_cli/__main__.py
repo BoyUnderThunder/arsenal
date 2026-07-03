@@ -49,7 +49,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub = parser.add_subparsers(dest="command", metavar="<command>")
     sub.add_parser("armory", help=_COMMANDS["armory"][1])
-    sub.add_parser("doctor", help=_COMMANDS["doctor"][1])
+    dr = sub.add_parser("doctor", help=_COMMANDS["doctor"][1])
+    dr.add_argument("--json", action="store_true", help="machine-readable JSON output")
     rb = sub.add_parser("reportbug", help=_COMMANDS["reportbug"][1])
     rb.add_argument("--no-redact", action="store_true", help="do not redact sensitive data")
     rb.add_argument("-o", "--output", help="output path for the bundle")

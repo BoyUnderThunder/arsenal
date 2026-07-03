@@ -118,6 +118,37 @@ class TestDoctorChecks(unittest.TestCase):
             rc = doctor.run(None)
         self.assertIn(rc, (0, 1))
 
+    def test_run_json_reports_fail(self):
+        import json
+
+        fake = [
+            doctor.Check("Hardened kernel active", ui.Status.OK, "x-hardened"),
+            doctor.Check("Firewall", ui.Status.FAIL, "down"),
+            doctor.Check("Arsenal version", ui.Status.INFO, "rolling"),
+        ]
+        buf = io.StringIO()
+        with mock.patch.object(doctor, "gather", return_value=fake), redirect_stdout(buf):
+            rc = doctor.run(types.SimpleNamespace(json=True))
+        self.assertEqual(rc, 1)
+        payload = json.loads(buf.getvalue())
+        self.assertFalse(payload["ok"])
+        self.assertEqual(len(payload["checks"]), 3)
+        self.assertEqual(payload["checks"][0]["status"], "ok")
+        self.assertEqual(payload["summary"]["fail"], 1)
+
+    def test_run_json_ok_when_no_fail(self):
+        import json
+
+        fake = [
+            doctor.Check("A", ui.Status.OK, ""),
+            doctor.Check("B", ui.Status.WARN, "meh"),  # WARN must not fail the run
+        ]
+        buf = io.StringIO()
+        with mock.patch.object(doctor, "gather", return_value=fake), redirect_stdout(buf):
+            rc = doctor.run(types.SimpleNamespace(json=True))
+        self.assertEqual(rc, 0)
+        self.assertTrue(json.loads(buf.getvalue())["ok"])
+
 
 if __name__ == "__main__":
     unittest.main()

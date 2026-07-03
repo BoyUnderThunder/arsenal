@@ -7,11 +7,13 @@
 Print the weapon registry (weapon → tool → category → description) with `●`/`○`
 showing installed tools. See [weapon framework](weapon-framework.md).
 
-## `doctor`
+## `doctor [--json]`
 System health & security diagnostics. Colour-coded `[✓]/[!]/[✗]/[i]`; exit code
 is non-zero only on a failed check. Checks: hardened kernel, AppArmor, nftables
-(default-deny), BlackArch repo, internet, disk, memory, version, pending updates,
-package integrity, critical services.
+(default-deny), kernel-hardening sysctls, BlackArch repo, internet, disk, memory,
+version, pending updates, package integrity, critical services.
+- `--json` — machine-readable output (`{checks[], summary, ok}`) for monitoring
+  or scripting; same exit code as the human view.
 
 ## `update [--check] [-y] [--no-snapshot]`
 Refresh repos and upgrade packages safely. See [update & rollback](update.md).
