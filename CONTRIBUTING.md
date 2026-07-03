@@ -38,6 +38,13 @@ python -m unittest discover -s tests -t . -v   # stdlib only; must pass
 ruff check .                                    # must be clean (pinned in CI)
 ```
 
+Or run everything CI runs (ruff + CLI tests + SBOM-generator tests +
+ShellCheck) in one shot from the repo root before pushing:
+
+```bash
+tools/preflight.sh
+```
+
 The CLI is **stdlib-only** in its foundation; optional features must detect
 their extras at runtime and degrade gracefully (never hard-crash because an
 optional dep is missing).
