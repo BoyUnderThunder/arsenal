@@ -29,6 +29,22 @@ FLAVOR="${ARSENAL_PROFILE:-full}"
 c_log() { printf '\033[1;31m[arsenal]\033[0m %s\n' "$*"; }
 c_die() { printf '\033[1;31m[arsenal:ERROR]\033[0m %s\n' "$*" >&2; exit 1; }
 
+# `pacman -Sy` refreshes every repo, including the rolling BlackArch mirror,
+# which times out transiently often enough to abort a ~50-min build at minute 2
+# under `set -e`. Retry a few times with backoff before treating it as a real
+# outage, so a 10-second mirror hiccup no longer throws away the whole build.
+pac_sync() {
+    local attempt max=4
+    for (( attempt = 1; attempt <= max; attempt++ )); do
+        if pacman -Sy; then
+            return 0
+        fi
+        c_log "package DB sync failed (attempt ${attempt}/${max}) — retrying in $(( attempt * 5 ))s…"
+        sleep $(( attempt * 5 ))
+    done
+    c_die "package DB sync (pacman -Sy) still failing after ${max} attempts — mirrors unreachable."
+}
+
 [[ ${EUID} -eq 0 ]] || c_die "must run as root (mkarchiso requires it)."
 command -v pacman >/dev/null 2>&1 || c_die "pacman not found — build on Arch Linux or in an archlinux container."
 
@@ -51,14 +67,14 @@ ARCH_SNAPSHOT="${ARSENAL_ARCH_SNAPSHOT:-2026/06/30}"
 pin_arch_mirror() {
     if [[ "${ARCH_SNAPSHOT}" == "off" ]]; then
         c_log "Arch snapshot pin disabled (rolling); syncing current mirrors."
-        pacman -Sy
+        pac_sync
         return 0
     fi
     c_log "Pinning Arch mirror to ALA snapshot ${ARCH_SNAPSHOT} (ARSENAL_ARCH_SNAPSHOT=off to disable)…"
     # Single-quoted format keeps pacman's $repo/$arch literal; only the date expands.
     printf 'Server=https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "${ARCH_SNAPSHOT}" \
         > /etc/pacman.d/mirrorlist
-    pacman -Sy
+    pac_sync
     c_log "Effective [core] mirror: $(pacman-conf --repo core 2>/dev/null | awk '/^Server/{print $3; exit}' || echo '?')"
 }
 

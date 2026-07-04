@@ -44,6 +44,11 @@ platform — the builder, the Fortress hardening baseline, the Armory, the
 - CI runs a hardening self-test / integration gate on each build; `ci-test`
   lints and tests all of `cli/` and `tools/`.
 
+### Fixed
+- Build resilience: the post-strap package-DB sync now retries with backoff
+  instead of aborting the whole ~50-minute build the first time a (rolling
+  BlackArch) mirror times out mid-refresh.
+
 ## [v2026.06.22]
 
 Initial public release — the Arsenal live ISO (Arch Linux + BlackArch): the
