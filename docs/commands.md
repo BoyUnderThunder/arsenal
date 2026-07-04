@@ -3,9 +3,11 @@
 `arsenal <command> [options]`. Global flags: `--no-color`, `-v/--verbose`,
 `--version`. With no command, prints the armory. Logs: `/var/log/arsenal/arsenal.log`.
 
-## `armory` (default)
+## `armory [--json]` (default)
 Print the weapon registry (weapon → tool → category → description) with `●`/`○`
 showing installed tools. See [weapon framework](weapon-framework.md).
+- `--json` — machine-readable inventory (`{weapons[], count}`, each weapon with
+  `installed`) for scripting and dashboards.
 
 ## `doctor [--json]`
 System health & security diagnostics. Colour-coded `[✓]/[!]/[✗]/[i]`; exit code

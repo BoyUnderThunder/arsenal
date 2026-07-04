@@ -1,5 +1,7 @@
 import io
+import json
 import tempfile
+import types
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -42,6 +44,39 @@ class TestArmory(unittest.TestCase):
             with redirect_stdout(buf):
                 rc = armory.run(None)
         self.assertEqual(rc, 1)
+
+    def test_json_inventory(self):
+        with tempfile.TemporaryDirectory() as td:
+            reg = Path(td) / "registry"
+            reg.write_text(REGISTRY_SAMPLE)
+            # nmap "installed", msfconsole not — exercises both installed states.
+            def fake_which(binary):
+                return "/usr/bin/nmap" if binary == "nmap" else None
+
+            buf = io.StringIO()
+            with mock.patch.object(config, "REGISTRY", reg), \
+                 mock.patch.object(armory.runner, "which", side_effect=fake_which), \
+                 redirect_stdout(buf):
+                rc = armory.run(types.SimpleNamespace(json=True))
+        self.assertEqual(rc, 0)
+        payload = json.loads(buf.getvalue())  # must be valid JSON, no banner
+        self.assertEqual(payload["count"], 2)
+        first = payload["weapons"][0]
+        self.assertEqual(first["weapon"], "sniper")
+        self.assertEqual(first["tool"], "nmap")
+        self.assertEqual(first["category"], "Recon")
+        self.assertTrue(first["installed"])
+        self.assertFalse(payload["weapons"][1]["installed"])
+
+    def test_json_missing_registry(self):
+        with mock.patch.object(config, "REGISTRY", Path("/no/such/registry")):
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = armory.run(types.SimpleNamespace(json=True))
+        self.assertEqual(rc, 1)
+        payload = json.loads(buf.getvalue())  # error path still emits valid JSON
+        self.assertEqual(payload["count"], 0)
+        self.assertIn("error", payload)
 
 
 if __name__ == "__main__":

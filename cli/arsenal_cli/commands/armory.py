@@ -3,8 +3,13 @@
 Prints the weapon registry — weapon name -> real tool -> category -> what it
 does — reading the same ``/usr/local/share/arsenal/registry`` that drives the
 profile.d launchers, so the two never drift.
+
+With ``--json`` it emits the same inventory as machine-readable JSON (weapon,
+tool, category, description, installed) for scripting and dashboards.
 """
 from __future__ import annotations
+
+import json
 
 from .. import config, runner, ui
 
@@ -27,7 +32,35 @@ def _iter_registry(text: str):
             yield parts[0], parts[1], parts[2], parts[3]
 
 
+def _inventory():
+    """Return the weapon registry as a list of dicts (machine-readable)."""
+    rows = []
+    for weapon, binary, category, desc in _iter_registry(config.REGISTRY.read_text()):
+        rows.append(
+            {
+                "weapon": weapon,
+                "tool": binary,
+                "category": category,
+                "description": desc,
+                "installed": runner.which(binary) is not None,
+            }
+        )
+    return rows
+
+
+def _run_json() -> int:
+    if not config.REGISTRY.is_file():
+        print(json.dumps({"weapons": [], "count": 0, "error": "registry not found"}, indent=2))
+        return 1
+    rows = _inventory()
+    print(json.dumps({"weapons": rows, "count": len(rows)}, indent=2))
+    return 0
+
+
 def run(args) -> int:
+    if getattr(args, "json", False):
+        return _run_json()
+
     print(ui.style(BANNER, ui.RED))
     print(ui.style("        white-hat security OS · the armory", ui.DIM))
 

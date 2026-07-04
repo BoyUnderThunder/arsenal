@@ -16,7 +16,7 @@ tests live in `cli/` in the repo.
 
 | Command | What it does | Details |
 |---|---|---|
-| `arsenal` / `armory` | Weapon registry table (`●` installed / `○` not on image). | [weapon-framework.md](weapon-framework.md) |
+| `arsenal` / `armory` | Weapon registry table (`●` installed / `○` not on image); `--json` for a machine-readable inventory. | [weapon-framework.md](weapon-framework.md) |
 | `doctor` | 11 colour-coded health & security checks; exit ≠ 0 only on a failure. | below |
 | `update` | Keyrings-first safe upgrade with rollback prep, verify, history. | [update.md](update.md) |
 | `reportbug` | Redacted, compressed support bundle. | [troubleshooting.md](troubleshooting.md) |

@@ -48,7 +48,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("-v", "--verbose", action="store_true", help="verbose logging to stderr")
 
     sub = parser.add_subparsers(dest="command", metavar="<command>")
-    sub.add_parser("armory", help=_COMMANDS["armory"][1])
+    ar = sub.add_parser("armory", help=_COMMANDS["armory"][1])
+    ar.add_argument("--json", action="store_true", help="machine-readable JSON inventory")
     dr = sub.add_parser("doctor", help=_COMMANDS["doctor"][1])
     dr.add_argument("--json", action="store_true", help="machine-readable JSON output")
     rb = sub.add_parser("reportbug", help=_COMMANDS["reportbug"][1])
