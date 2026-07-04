@@ -22,3 +22,12 @@ excavator|feroxbuster|Web|feroxbuster — recursive content discovery
 breach|gobuster|Web|gobuster — dir/DNS/vhost brute-forcer
 probe|nikto|Web|Nikto — web server vuln scanner
 blueprint|searchsploit|Exploitation|searchsploit — offline Exploit-DB search
+# --- surfaced from the installed toolkit ---
+dissector|radare2|Reversing|radare2 — reverse-engineering framework
+smith|john|Passwords|John the Ripper — versatile password cracker
+vivisector|gdb|Reversing|GDB — the GNU debugger
+wiretap|tcpdump|Monitor|tcpdump — command-line packet capture
+ghost|proxychains|Network|proxychains — route any tool through proxy chains
+# --- expanded toolkit ---
+howitzer|masscan|Recon|masscan — asynchronous mass port scanner
+prospector|binwalk|Forensics|binwalk — firmware extraction & analysis
