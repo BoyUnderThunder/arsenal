@@ -59,7 +59,11 @@ jobs:
             profile/airootfs/usr/local/bin/arsenal \
             profile/airootfs/usr/local/bin/arsenal-selftest \
             profile/airootfs/etc/profile.d/zz-arsenal-selftest.sh \
+            profile/airootfs/usr/share/bash-completion/completions/arsenal \
             tools/smoke-test.sh \
             tools/integration-test.sh \
             tools/verify-release.sh \
             build.sh
+          # completion must source cleanly and register (catches runtime parse errors)
+          bash -c "source profile/airootfs/usr/share/bash-completion/completions/arsenal \
+            && complete -p arsenal | grep -q _arsenal"

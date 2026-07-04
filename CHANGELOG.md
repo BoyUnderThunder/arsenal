@@ -33,8 +33,12 @@ platform — the builder, the Fortress hardening baseline, the Armory, the
 - **Seven Armory weapons** — `howitzer` (masscan) and `prospector` (binwalk),
   plus `dissector` (radare2), `smith` (john), `vivisector` (gdb), `wiretap`
   (tcpdump) and `ghost` (proxychains) surfacing tools already in the image.
+- **Bash tab-completion** for the `arsenal` CLI (subcommands + options) on the
+  live image.
 - **Developer tooling.** `tools/preflight.sh` runs the CI fast-checks (ruff,
-  CLI + provenance tests, ShellCheck) locally before pushing.
+  CLI + provenance tests, ShellCheck) locally before pushing; a registry
+  invariant test guards the weapon registry (4 fields, unique names, no
+  shadowing of critical commands) so a bad entry fails CI, not the ISO.
 
 ### Changed
 - CI runs a hardening self-test / integration gate on each build; `ci-test`

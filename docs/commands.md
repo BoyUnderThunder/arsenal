@@ -2,6 +2,7 @@
 
 `arsenal <command> [options]`. Global flags: `--no-color`, `-v/--verbose`,
 `--version`. With no command, prints the armory. Logs: `/var/log/arsenal/arsenal.log`.
+Bash tab-completion for subcommands and options ships on the live image.
 
 ## `armory [--json]` (default)
 Print the weapon registry (weapon → tool → category → description) with `●`/`○`

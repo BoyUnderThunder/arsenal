@@ -40,6 +40,7 @@ if command -v shellcheck >/dev/null 2>&1; then
         profile/airootfs/usr/local/bin/arsenal \
         profile/airootfs/usr/local/bin/arsenal-selftest \
         profile/airootfs/etc/profile.d/zz-arsenal-selftest.sh \
+        profile/airootfs/usr/share/bash-completion/completions/arsenal \
         tools/smoke-test.sh tools/integration-test.sh tools/verify-release.sh \
         tools/preflight.sh build.sh
 else

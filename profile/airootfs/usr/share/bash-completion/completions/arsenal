@@ -1,0 +1,41 @@
+# shellcheck shell=bash
+# bash completion for the Arsenal platform CLI (`arsenal`).
+# Completes subcommands and their options. Sourced by bash-completion on the
+# live ISO; degrades gracefully if the _init_completion helper is unavailable.
+_arsenal() {
+    local cur cword words
+    if declare -F _init_completion >/dev/null 2>&1; then
+        _init_completion || return
+    else
+        cur="${COMP_WORDS[COMP_CWORD]}"
+        cword="${COMP_CWORD}"
+        words=("${COMP_WORDS[@]}")
+    fi
+
+    local commands="armory doctor update reportbug report recon web ad profile ai dashboard"
+    local global_opts="--help --version --no-color --verbose"
+
+    # Locate the subcommand: the first non-option word after the program name.
+    local sub="" i
+    for (( i = 1; i < cword; i++ )); do
+        case "${words[i]}" in
+            -*) ;;
+            *) sub="${words[i]}"; break ;;
+        esac
+    done
+
+    local opts
+    if [[ -z "${sub}" ]]; then
+        opts="${commands} ${global_opts}"
+    else
+        case "${sub}" in
+            armory|doctor) opts="--json" ;;
+            reportbug)     opts="--no-redact --output -o" ;;
+            update)        opts="--check -y --no-snapshot" ;;
+            *)             opts="--help" ;;
+        esac
+    fi
+
+    mapfile -t COMPREPLY < <(compgen -W "${opts}" -- "${cur}")
+}
+complete -F _arsenal arsenal
