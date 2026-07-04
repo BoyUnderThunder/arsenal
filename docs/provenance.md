@@ -32,6 +32,21 @@ the full dependency closure, not just the explicit package list:
 Both SBOMs record the ALA snapshot in their document metadata. The generator is
 `tools/gen_sbom.py` (stdlib-only, unit-tested in `tools/test_gen_sbom.py`).
 
+The build then **self-checks** the artifacts it just wrote with
+`tools/verify-sbom.py`: it confirms the CycloneDX SBOM is well-formed (valid
+serial, an `operating-system` root component, every `pkg:alpm` PURL matching its
+own name/version under a single architecture), the SPDX document is well-formed,
+and that the CycloneDX, SPDX and lockfile all describe the **same** package set.
+You can run the same check on downloaded provenance:
+
+```bash
+tools/verify-sbom.py --sbom <iso>.cdx.json --spdx <iso>.spdx.json --lock <iso>.lock
+```
+
+It exits non-zero (and prints each `[FAIL]`) if anything is malformed or the
+three artifacts disagree. It is stdlib-only and unit-tested in
+`tools/test_verify_sbom.py`, including a round-trip against `gen_sbom.py`.
+
 At release time, `release.yml` commits the released build's lockfile to
 `manifests/<tag>.lock` so each tag's exact contents stay auditable from the repo.
 Diff two releases with:

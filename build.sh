@@ -263,6 +263,16 @@ if [[ -n "${ISO}" && -n "${AIROOTFS}" && -d "${AIROOTFS}/var/lib/pacman/local" ]
             --spdx "${OUT}/${BASE}.spdx.json" < "${WORK}/pkglist.txt"; then
         c_log "Provenance written:"
         ls -lh "${OUT}/${BASE}.lock" "${OUT}/${BASE}.cdx.json" "${OUT}/${BASE}.spdx.json"
+        # Self-check the artifacts we just wrote (well-formed + CDX/SPDX/lock
+        # agree). Non-fatal for now: report problems loudly without failing an
+        # otherwise-good build.
+        if python "${HERE}/tools/verify-sbom.py" \
+                --sbom "${OUT}/${BASE}.cdx.json" --spdx "${OUT}/${BASE}.spdx.json" \
+                --lock "${OUT}/${BASE}.lock"; then
+            c_log "Provenance self-check passed."
+        else
+            c_log "WARN: provenance self-check reported problems (non-fatal) — see above."
+        fi
     else
         c_log "WARN: provenance generation failed (non-fatal) — ISO is unaffected."
     fi

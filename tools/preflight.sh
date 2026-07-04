@@ -27,13 +27,13 @@ step() {  # step "name" cmd args...
 skip() { printf '\n==> %s — SKIPPED (%s not installed)\n' "$1" "$2"; }
 
 if command -v ruff >/dev/null 2>&1; then
-    step "ruff lint" ruff check --config cli/pyproject.toml cli tools/gen_sbom.py tools/test_gen_sbom.py
+    step "ruff lint" ruff check --config cli/pyproject.toml cli tools
 else
     skip "ruff lint" ruff
 fi
 
 step "CLI unit tests" bash -c 'cd cli && python -m unittest discover -s tests -t . -q'
-step "SBOM generator tests" bash -c 'cd tools && python -m unittest test_gen_sbom -q'
+step "tools tests (SBOM gen + verify)" bash -c 'cd tools && python -m unittest discover -s . -p "test_*.py" -q'
 
 if command -v shellcheck >/dev/null 2>&1; then
     step "ShellCheck" shellcheck -S warning \
