@@ -9,7 +9,13 @@ on:
       - "cli/**"
       - "tools/**"
       - "build.sh"
-      - "profile/airootfs/usr/local/bin/arsenal"
+      # the profile files ci-test lints (shellcheck + mandoc) — keep in sync
+      # with the ShellCheck / man-page-lint steps below so a change to any of
+      # them actually re-runs its check
+      - "profile/airootfs/usr/local/bin/**"
+      - "profile/airootfs/etc/profile.d/**"
+      - "profile/airootfs/usr/share/bash-completion/**"
+      - "profile/airootfs/usr/share/man/**"
       - ".github/workflows/ci-test.yml"
   workflow_dispatch:
 
