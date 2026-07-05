@@ -164,6 +164,27 @@ class TestDoctorChecks(unittest.TestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].status, ui.Status.INFO)
 
+    def test_gather_preserves_order_despite_concurrency(self):
+        # Checks run on a thread pool; results must still come back in CHECKS
+        # order. A deliberately slow first check would land last if order were
+        # by completion — assert it stays first.
+        import time
+
+        def slow():
+            time.sleep(0.05)
+            return doctor.Check("slow-first", ui.Status.OK)
+
+        def fast():
+            return doctor.Check("fast-second", ui.Status.OK)
+
+        with mock.patch.object(doctor, "CHECKS", [slow, fast]):
+            results = doctor.gather()
+        self.assertEqual([c.name for c in results], ["slow-first", "fast-second"])
+
+    def test_gather_empty_checks(self):
+        with mock.patch.object(doctor, "CHECKS", []):
+            self.assertEqual(doctor.gather(), [])
+
     def test_run_smoke(self):
         ui.set_color(False)
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):

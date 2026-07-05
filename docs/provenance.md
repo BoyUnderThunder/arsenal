@@ -16,6 +16,9 @@ package versions instead of whatever rolling Arch happens to serve that day.
   mirror list), and the effective `[core]` mirror is logged during the build.
 - BlackArch has no dated archive, so it stays rolling; the small skew against
   the pinned Arch base is harmless in practice.
+- The airootfs squashfs is compressed with zstd (deterministic, like the xz it
+  replaces), so the choice of compressor doesn't affect reproducibility — it
+  just builds faster and boots faster. Override with `ARSENAL_SQUASHFS_COMP=off`.
 
 ## What every build emits
 
