@@ -2,16 +2,24 @@
 
 `arsenal <command> [options]`. Global flags: `--no-color`, `-v/--verbose`,
 `--version`. With no command, prints the armory. Logs: `/var/log/arsenal/arsenal.log`.
+Bash tab-completion for subcommands and options ships on the live image.
 
-## `armory` (default)
+## `armory [QUERY] [--json]` (default)
 Print the weapon registry (weapon → tool → category → description) with `●`/`○`
 showing installed tools. See [weapon framework](weapon-framework.md).
+- `QUERY` — filter to weapons whose name/tool/category/description contains the
+  term (case-insensitive), e.g. `arsenal armory web`.
+- `--json` — machine-readable inventory (`{weapons[], count}`, each weapon with
+  `installed`) for scripting and dashboards.
 
-## `doctor`
+## `doctor [--json]`
 System health & security diagnostics. Colour-coded `[✓]/[!]/[✗]/[i]`; exit code
 is non-zero only on a failed check. Checks: hardened kernel, AppArmor, nftables
-(default-deny), BlackArch repo, internet, disk, memory, version, pending updates,
-package integrity, critical services.
+(default-deny), kernel-hardening sysctls, module blacklist, AppArmor enforce
+mode, BlackArch repo, internet, network exposure (listening services), disk,
+memory, version, pending updates, package integrity, critical services.
+- `--json` — machine-readable output (`{checks[], summary, ok}`) for monitoring
+  or scripting; same exit code as the human view.
 
 ## `update [--check] [-y] [--no-snapshot]`
 Refresh repos and upgrade packages safely. See [update & rollback](update.md).

@@ -25,6 +25,12 @@ jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # Signing is optional: it runs only when a project GPG key is configured as
+    # the GPG_PRIVATE_KEY secret (with GPG_PASSPHRASE). Without it, releases are
+    # published exactly as before — just unsigned.
+    env:
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,6 +49,15 @@ jobs:
           run-id: ${{ github.event.inputs.run_id }}
           github-token: ${{ github.token }}
 
+      - name: Download provenance artifact (lockfile + SBOM)
+        uses: actions/download-artifact@v4
+        continue-on-error: true   # older builds may predate provenance
+        with:
+          name: arsenal-provenance
+          path: /mnt/rel
+          run-id: ${{ github.event.inputs.run_id }}
+          github-token: ${{ github.token }}
+
       - name: Split ISO + checksum
         id: prep
         run: |
@@ -55,6 +70,11 @@ jobs:
           split -b 1900M -d -a 2 "${BASE}" "${BASE}.part"
           rm -f "${BASE}"            # don't attempt to upload the >2 GiB whole file
           ls -lh "${BASE}".part* "${BASE}.sha256"
+          # One checksum manifest over every published file (parts + provenance),
+          # so a single (optionally signed) file verifies the whole release.
+          sha256sum "${BASE}".part* > SHA256SUMS
+          for f in *.lock *.cdx.json *.spdx.json; do [[ -e "$f" ]] && sha256sum "$f" >> SHA256SUMS; done
+          echo "---- SHA256SUMS ----"; cat SHA256SUMS
           {
             echo "base=${BASE}"
           } >> "${GITHUB_OUTPUT}"
@@ -79,7 +99,34 @@ jobs:
 
           Hardened by default: linux-hardened kernel, AppArmor, default-deny nftables, LUKS-ready.
           Authorized testing only.
+
+          ---
+          Verify everything you downloaded (parts + provenance):
+
+              sha256sum -c SHA256SUMS
+
+          Supply-chain provenance is attached: the package lockfile
+          (\`${BASE}.lock\`) and a CycloneDX SBOM (\`${BASE}.cdx.json\`). If
+          \`SHA256SUMS.asc\` is present, the release is GPG-signed — verify with:
+
+              gpg --verify SHA256SUMS.asc SHA256SUMS
           EOF
+
+      - name: Sign release (GPG, optional)
+        if: ${{ env.GPG_PRIVATE_KEY != '' }}
+        run: |
+          cd /mnt/rel
+          BASE="${{ steps.prep.outputs.base }}"
+          printf '%s' "${GPG_PRIVATE_KEY}" | gpg --batch --import
+          KEYID="$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/{print $5; exit}')"
+          echo "Signing with key ${KEYID}"
+          sign() {
+            gpg --batch --yes --pinentry-mode loopback --passphrase "${GPG_PASSPHRASE}" \
+                --local-user "${KEYID}" --armor --detach-sign --output "$1.asc" "$1"
+          }
+          sign SHA256SUMS
+          sign "${BASE}.sha256"
+          ls -lh *.asc
 
       - name: Publish GitHub Release
         env:
@@ -87,11 +134,35 @@ jobs:
         run: |
           cd /mnt/rel
           BASE="${{ steps.prep.outputs.base }}"
-          gh release create "${{ github.event.inputs.tag }}" \
-            "${BASE}".part* "${BASE}.sha256" \
+          TAG="${{ github.event.inputs.tag }}"
+          # Always publish: parts + whole-ISO checksum + the SHA256SUMS manifest.
+          ASSETS=( "${BASE}".part* "${BASE}.sha256" SHA256SUMS )
+          # Optionally add provenance (if the build produced it) and signatures (if signed).
+          for f in "${BASE}.lock" "${BASE}.cdx.json" "${BASE}.spdx.json" SHA256SUMS.asc "${BASE}.sha256.asc"; do
+            [[ -e "$f" ]] && ASSETS+=( "$f" )
+          done
+          echo "Release assets:"; printf '  %s\n' "${ASSETS[@]}"
+          gh release create "${TAG}" "${ASSETS[@]}" \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
-            --title "Arsenal ${{ github.event.inputs.tag }}" \
+            --title "Arsenal ${TAG}" \
             --notes-file notes.md
           echo "Release published:"
-          gh release view "${{ github.event.inputs.tag }}" --repo "${{ github.repository }}" --json url --jq .url
+          gh release view "${TAG}" --repo "${{ github.repository }}" --json url --jq .url
+
+      - name: Record lockfile in manifests/
+        # Best-effort: commit the released build's lockfile as manifests/<tag>.lock
+        # so each tag's exact package set is auditable from the repo. Never fail
+        # the release over this (e.g. if the branch is protected).
+        continue-on-error: true
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          LOCK="$(find /mnt/rel -maxdepth 1 -name '*.lock' | head -n1)"
+          [ -n "${LOCK}" ] || { echo "no lockfile to record"; exit 0; }
+          mkdir -p manifests
+          cp "${LOCK}" "manifests/${TAG}.lock"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "manifests/${TAG}.lock"
+          git commit -m "release: record package lockfile for ${TAG}" || { echo "nothing to commit"; exit 0; }
+          git push origin "HEAD:${{ github.ref_name }}" || echo "push failed (branch protected?) — lockfile is still a release asset"

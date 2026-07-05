@@ -6,7 +6,9 @@ check is FAIL (so it is usable in scripts and CI).
 """
 from __future__ import annotations
 
+import json
 import os
+import re
 import shutil
 import socket
 from collections.abc import Callable
@@ -49,11 +51,96 @@ def check_firewall() -> Check:
     active = runner.run(["systemctl", "is-active", "nftables"], timeout=10).stdout.strip()
     ruleset = runner.run(["nft", "list", "ruleset"], timeout=10)
     default_deny = "policy drop" in ruleset.stdout
-    if active == "active" and default_deny:
-        return Check("Firewall active (nftables, default-deny)", ui.Status.OK)
+    # The loaded ruleset is the ground truth for whether the firewall is up: a
+    # default-deny policy blocks inbound traffic even when nftables.service reads
+    # "inactive" — it is a oneshot that exits after loading rules, which is normal
+    # on the live ISO. Only treat the firewall as down when no default-deny
+    # policy is present at all.
+    if default_deny:
+        detail = "nftables, default-deny" if active == "active" else f"nftables, default-deny (service {active or 'inactive'})"
+        return Check("Firewall active (default-deny)", ui.Status.OK, detail)
     if active == "active":
         return Check("Firewall active", ui.Status.WARN, "nftables up but no default-deny policy")
-    return Check("Firewall", ui.Status.FAIL, "nftables inactive")
+    return Check("Firewall", ui.Status.FAIL, "nftables inactive, no default-deny ruleset")
+
+
+# Kernel-hardening sysctls Arsenal ships in
+# etc/sysctl.d/99-arsenal-hardening.conf — the security-relevant subset.
+# Keep in sync with that file.
+_HARDENING_SYSCTLS: dict[str, str] = {
+    "kernel.kptr_restrict": "2",
+    "kernel.dmesg_restrict": "1",
+    "kernel.yama.ptrace_scope": "1",
+    "kernel.unprivileged_bpf_disabled": "1",
+    "net.core.bpf_jit_harden": "2",
+    "kernel.perf_event_paranoid": "3",
+    "fs.suid_dumpable": "0",
+    "fs.protected_symlinks": "1",
+    "fs.protected_hardlinks": "1",
+}
+
+
+def check_hardening_sysctls() -> Check:
+    """Verify Arsenal's kernel-hardening sysctls are applied at runtime.
+
+    Posture reporting only: WARN (never FAIL) on drift, since the boot-time
+    self-test already gates the build on the critical values and doctor's exit
+    code must stay usable in scripts.
+    """
+    mismatched: list[str] = []
+    unavailable = 0
+    for key, want in _HARDENING_SYSCTLS.items():
+        res = runner.run(["sysctl", "-n", key], timeout=10)
+        if res.missing:
+            unavailable += 1
+            continue
+        got = res.stdout.strip()
+        if got != want:
+            mismatched.append(f"{key}={got or '?'}≠{want}")
+    total = len(_HARDENING_SYSCTLS)
+    if unavailable == total:
+        return Check("Kernel hardening sysctls", ui.Status.INFO, "sysctl unavailable")
+    if not mismatched:
+        return Check("Kernel hardening sysctls applied", ui.Status.OK, f"{total} values")
+    shown = ", ".join(mismatched[:3])
+    more = "" if len(mismatched) <= 3 else f" (+{len(mismatched) - 3} more)"
+    return Check("Kernel hardening sysctls", ui.Status.WARN, f"{len(mismatched)}/{total} not applied: {shown}{more}")
+
+
+# Kernel modules Arsenal blacklists in etc/modprobe.d/arsenal-blacklist.conf —
+# rarely-used, historically-abused protocols/filesystems. Keep in sync.
+_BLACKLISTED_MODULES: frozenset[str] = frozenset(
+    {
+        "dccp", "sctp", "rds", "tipc",
+        "cramfs", "freevxfs", "jffs2", "hfs", "hfsplus", "udf",
+        "firewire-core", "thunderbolt",
+    }
+)
+
+
+def check_module_blacklist() -> Check:
+    """WARN if any blacklisted attack-surface kernel module is loaded."""
+    res = runner.run(["lsmod"], timeout=10)
+    if res.missing:
+        return Check("Module blacklist", ui.Status.INFO, "lsmod unavailable")
+    # lsmod names use underscores; the blacklist uses hyphens — normalise both.
+    loaded = {ln.split()[0].replace("-", "_") for ln in res.stdout.splitlines()[1:] if ln.split()}
+    hits = sorted(m for m in _BLACKLISTED_MODULES if m.replace("-", "_") in loaded)
+    if not hits:
+        return Check("Module blacklist enforced", ui.Status.OK, f"{len(_BLACKLISTED_MODULES)} modules")
+    return Check("Module blacklist", ui.Status.WARN, "loaded: " + ", ".join(hits))
+
+
+def check_apparmor_enforced() -> Check:
+    """Report how many AppArmor profiles are in enforce mode."""
+    res = runner.run(["aa-status", "--enforced"], timeout=10)
+    if res.missing:
+        return Check("AppArmor enforce mode", ui.Status.INFO, "aa-status unavailable")
+    tok = res.stdout.strip().split()
+    n = int(tok[0]) if tok and tok[0].isdigit() else 0
+    if n > 0:
+        return Check("AppArmor enforce mode", ui.Status.OK, f"{n} profiles enforced")
+    return Check("AppArmor enforce mode", ui.Status.WARN, "no profiles in enforce mode")
 
 
 def check_blackarch() -> Check:
@@ -76,12 +163,47 @@ def check_internet() -> Check:
     return Check("Internet connectivity", ui.Status.WARN, "no outbound connection")
 
 
+def check_listening() -> Check:
+    """Report network services listening beyond loopback (attack surface).
+
+    Informational posture for an operator: which ports are reachable off the
+    box. INFO/OK only (never WARN/FAIL) — a live pentest ISO legitimately runs
+    sshd, so this surfaces exposure without crying wolf or affecting exit code.
+    """
+    res = runner.run(["ss", "-H", "-tlnp"], timeout=10)
+    if res.missing:
+        return Check("Listening services", ui.Status.INFO, "ss unavailable")
+    exposed: list[str] = []
+    for line in res.stdout.splitlines():
+        parts = line.split()
+        if len(parts) < 4:
+            continue
+        addr, _, port = parts[3].rpartition(":")  # local addr:port
+        if not port:
+            continue
+        host = addr.strip("[]")
+        if host in ("127.0.0.1", "::1") or host.startswith("127."):
+            continue  # loopback-only — not externally reachable
+        procs = re.findall(r'\("([^"]+)"', line)  # users:(("sshd",pid=…))
+        exposed.append(f"{procs[0] if procs else '?'}:{port}")
+    if not exposed:
+        return Check("No externally-exposed services", ui.Status.OK, "loopback only")
+    uniq = list(dict.fromkeys(exposed))  # collapse IPv4+IPv6 of the same service
+    shown = ", ".join(uniq[:5])
+    more = "" if len(uniq) <= 5 else f" (+{len(uniq) - 5} more)"
+    return Check("Externally-exposed services", ui.Status.INFO, f"{len(uniq)}: {shown}{more}")
+
+
 def check_disk() -> Check:
-    total, _used, free = shutil.disk_usage("/")
+    # On the live ISO, `/` is an overlay whose writable layer is a RAM-backed
+    # cowspace; statvfs("/") can report the read-only squashfs (~0 free), a
+    # false alarm. Measure the writable cowspace instead when it is mounted.
+    path = "/run/archiso/cowspace" if os.path.ismount("/run/archiso/cowspace") else "/"
+    total, _used, free = shutil.disk_usage(path)
     free_gb = free / 1e9
     pct = free / total * 100 if total else 0
     status = ui.Status.OK if free_gb > 5 else ui.Status.WARN if free_gb > 1 else ui.Status.FAIL
-    return Check("Disk space", status, f"{free_gb:.1f} GB free ({pct:.0f}%) on /")
+    return Check("Disk space", status, f"{free_gb:.1f} GB free ({pct:.0f}%) on {path}")
 
 
 def check_memory() -> Check:
@@ -144,8 +266,12 @@ CHECKS: list[Callable[[], Check]] = [
     check_kernel,
     check_apparmor,
     check_firewall,
+    check_hardening_sysctls,
+    check_module_blacklist,
+    check_apparmor_enforced,
     check_blackarch,
     check_internet,
+    check_listening,
     check_disk,
     check_memory,
     check_version,
@@ -168,14 +294,29 @@ def gather() -> list[Check]:
 
 
 def run(args) -> int:
-    print(ui.header("Arsenal Doctor"))
     results = gather()
     worst = ui.Status.OK
     for c in results:
-        ui.print_status(c.status, c.name, c.detail)
         if ui.SEVERITY[c.status] > ui.SEVERITY[worst]:
             worst = c.status
+    rc = 1 if worst == ui.Status.FAIL else 0
 
+    # Machine-readable output for monitoring / scripting / the dashboard.
+    if getattr(args, "json", False):
+        payload = {
+            "checks": [
+                {"name": c.name, "status": c.status.value, "detail": c.detail}
+                for c in results
+            ],
+            "summary": {s.value: sum(1 for c in results if c.status == s) for s in ui.Status},
+            "ok": rc == 0,
+        }
+        print(json.dumps(payload, indent=2))
+        return rc
+
+    print(ui.header("Arsenal Doctor"))
+    for c in results:
+        ui.print_status(c.status, c.name, c.detail)
     counts = {s: sum(1 for c in results if c.status == s) for s in ui.Status}
     print()
     print(
@@ -186,4 +327,4 @@ def run(args) -> int:
             ui.DIM,
         )
     )
-    return 1 if worst == ui.Status.FAIL else 0
+    return rc

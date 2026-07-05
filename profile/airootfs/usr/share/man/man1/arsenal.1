@@ -1,0 +1,123 @@
+.\" Man page for the Arsenal platform CLI.
+.\" Kept in lock-step with the argparse subcommands by cli/tests/test_manpage.py.
+.TH ARSENAL 1 "2026-07-05" "Arsenal" "Arsenal Manual"
+.SH NAME
+arsenal \- white-hat security platform CLI (Arsenal live OS)
+.SH SYNOPSIS
+.B arsenal
+.RI [ global-options ]
+.RI [ command ]
+.RI [ command-options ]
+.SH DESCRIPTION
+.B arsenal
+is the platform command for the Arsenal white-hat security operating system
+(Arch Linux + BlackArch). With no
+.I command
+it prints the
+.BR armory ,
+the registry that maps a memorable weapon name to the real tool it launches.
+Other subcommands provide health and security diagnostics, safe updates,
+support bundles, and guided engagement workflows.
+.PP
+Each check the platform performs is designed to run unprivileged and degrade
+gracefully; commands that perform active testing require the caller to confirm
+authorization.
+.SH GLOBAL OPTIONS
+.TP
+.B \-\-version
+Print the Arsenal version and exit.
+.TP
+.B \-\-no\-color
+Disable coloured output (also honoured via
+.BR ARSENAL_NO_COLOR ).
+.TP
+.BR \-v ", " \-\-verbose
+Verbose logging to stderr.
+.SH COMMANDS
+.TP
+.B armory " [\fIQUERY\fR] [\-\-json]"
+List the weapon registry (weapon \(-> tool \(-> category \(-> description).
+A filled dot (\(bu) marks tools present on the image. An optional
+.I QUERY
+filters by name, tool, category, or description (case-insensitive);
+.B \-\-json
+emits a machine-readable inventory. This is the default when no command is given.
+.TP
+.B doctor " [\-\-json]"
+System health and security diagnostics: hardened kernel, AppArmor, nftables
+default-deny, kernel-hardening sysctls, blacklisted modules, network exposure,
+updates, integrity, and more. Exit status is non-zero only if a check fails.
+.B \-\-json
+emits the results for monitoring or scripting.
+.TP
+.B update " [\-\-check] [\-y] [\-\-no\-snapshot]"
+Refresh repositories and upgrade packages safely (keyrings first, snapshot
+prepared for rollback).
+.B \-\-check
+lists pending updates only;
+.B \-y
+skips the prompt;
+.B \-\-no\-snapshot
+skips the Timeshift hook. The upgrade itself requires root.
+.TP
+.B reportbug " [\-\-no\-redact] [\-o \fIFILE\fR]"
+Collect a compressed support bundle (logs, hardware, packages, services).
+Sensitive data is redacted by default.
+.TP
+.B report
+Generate or manage engagement reports from recorded workflow runs.
+.TP
+.B recon " \fITARGET\fR"
+Recon workflow: port/service scan plus web content discovery against an
+authorized target.
+.TP
+.B web " \fITARGET\fR"
+Web workflow: server misconfiguration and injection checks, with a Burp
+hand-off, against an authorized target.
+.TP
+.B ad " \fITARGET\fR"
+Active Directory workflow: authenticated enumeration and attack-path mapping
+against authorized hosts.
+.TP
+.B profile
+Manage package/tooling profiles (e.g. full vs. lean toolkits).
+.TP
+.B ai " [\fIPROMPT\fR ...]"
+Ask the built-in AI assistant (optional; degrades gracefully when no provider
+is configured).
+.TP
+.B dashboard
+Show a consolidated status dashboard for the live system.
+.SH FILES
+.TP
+.I /usr/local/share/arsenal/registry
+The weapon registry \(em single source of truth for the armory and the
+.I /etc/profile.d
+launchers.
+.TP
+.I /var/log/arsenal/arsenal.log
+Platform CLI log.
+.TP
+.I /etc/sysctl.d/99-arsenal-hardening.conf
+Kernel-hardening sysctls verified by
+.BR "arsenal doctor" .
+.SH EXAMPLES
+.TP
+List only the web weapons:
+.B arsenal armory web
+.TP
+Machine-readable health for a monitor:
+.B arsenal doctor \-\-json
+.TP
+See what is pending without changing anything:
+.B arsenal update \-\-check
+.SH AUTHORS
+The Arsenal project.
+.SH SEE ALSO
+.BR nft (8),
+.BR aa-status (8),
+.BR pacman (8)
+.PP
+Full documentation ships under
+.I /usr/share/doc
+and in the project repository.

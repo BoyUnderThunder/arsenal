@@ -45,6 +45,7 @@ python-pip
 
 # ---- Red team ---------------------------------------------------------------
 nmap            # sniper
+masscan         # howitzer — asynchronous mass port scanner
 metasploit      # bazooka
 burpsuite       # tower
 hydra           # tank
@@ -61,6 +62,7 @@ zeek
 autopsy         # interrogator
 sleuthkit
 volatility3     # detective (binary: vol)
+binwalk         # prospector — firmware extraction & analysis
 
 # ---- Reverse engineering ----------------------------------------------------
 ghidra          # scalpel

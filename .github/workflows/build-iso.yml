@@ -16,6 +16,7 @@ on:
     branches: ["**"]
     paths:
       - "profile/**"
+      - "cli/**"
       - "build.sh"
       - "tools/**"
       - ".github/workflows/build-iso.yml"
@@ -83,13 +84,33 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+      - name: Upload provenance (lockfile + SBOM)
+        uses: actions/upload-artifact@v4
+        with:
+          name: arsenal-provenance
+          path: |
+            /mnt/out/*.lock
+            /mnt/out/*.cdx.json
+            /mnt/out/*.spdx.json
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Integration test (hardening posture)
+        run: |
+          ISO="$(find /mnt/out -maxdepth 1 -name '*.iso' | head -n1)"
+          chmod +x tools/integration-test.sh
+          # Proves the Fortress is live (kernel/AppArmor/nftables/sysctls/doctor/weapons).
+          # Runs AFTER upload so a posture failure never costs us the built artifact.
+          sudo --preserve-env=SMOKE_MEM tools/integration-test.sh "${ISO}" 1500
+
       - name: Upload build logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: build-logs
+          # Small logs only — never the multi-GB mkarchiso work tree, which
+          # otherwise floods the job log and buries the integration output.
           path: |
-            /mnt/work/tmp/iso/
             /tmp/arsenal-serial*.log
           retention-days: 5
           if-no-files-found: ignore

@@ -8,6 +8,7 @@ CLI on top of a curated toolkit.
 - [Platform CLI overview](platform-cli.md) — architecture of the CLI.
 - [Weapon framework](weapon-framework.md) — the Armory: weapon → tool aliases.
 - [Hardening](hardening.md) — the Fortress: kernel, AppArmor, firewall, LUKS.
+- [Provenance & supply chain](provenance.md) — reproducible builds, SBOMs, verifying a release.
 - [Workflow engine](workflows.md) — `recon` / `web` / `ad` orchestration.
 - [AI assistant](ai.md) — `arsenal ai` providers & configuration.
 - [Update & rollback](update.md) — `arsenal update` process.
