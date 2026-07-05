@@ -1,6 +1,6 @@
 .\" Man page for the Arsenal platform CLI.
 .\" Kept in lock-step with the argparse subcommands by cli/tests/test_manpage.py.
-.TH ARSENAL 1 "2026" "Arsenal" "Arsenal Manual"
+.TH ARSENAL 1 "2026-07-05" "Arsenal" "Arsenal Manual"
 .SH NAME
 arsenal \- white-hat security platform CLI (Arsenal live OS)
 .SH SYNOPSIS
@@ -36,9 +36,8 @@ Verbose logging to stderr.
 .SH COMMANDS
 .TP
 .B armory " [\fIQUERY\fR] [\-\-json]"
-List the weapon registry (weapon \(-> tool \(-> category \(-> description) with
-.RB \( \(bu )
-marking tools present on the image. An optional
+List the weapon registry (weapon \(-> tool \(-> category \(-> description).
+A filled dot (\(bu) marks tools present on the image. An optional
 .I QUERY
 filters by name, tool, category, or description (case-insensitive);
 .B \-\-json
