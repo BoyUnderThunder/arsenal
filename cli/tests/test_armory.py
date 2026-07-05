@@ -78,6 +78,41 @@ class TestArmory(unittest.TestCase):
         self.assertEqual(payload["count"], 0)
         self.assertIn("error", payload)
 
+    def _run(self, sample, **ns):
+        with tempfile.TemporaryDirectory() as td:
+            reg = Path(td) / "registry"
+            reg.write_text(sample)
+            buf = io.StringIO()
+            with mock.patch.object(config, "REGISTRY", reg), redirect_stdout(buf):
+                rc = armory.run(types.SimpleNamespace(**ns))
+        return rc, buf.getvalue()
+
+    def test_query_filters_table(self):
+        # query matches on tool name (nmap) -> only sniper row, bazooka excluded.
+        rc, out = self._run(REGISTRY_SAMPLE, json=False, query="nmap")
+        self.assertEqual(rc, 0)
+        self.assertIn("sniper", out)
+        self.assertNotIn("bazooka", out)
+        self.assertIn("1 weapon matching 'nmap'", out)
+
+    def test_query_matches_category_case_insensitive(self):
+        rc, out = self._run(REGISTRY_SAMPLE, json=False, query="EXPLOIT")
+        self.assertIn("bazooka", out)
+        self.assertNotIn("nmap", out)  # sniper's tool — unique to the filtered-out row
+
+    def test_query_no_match(self):
+        rc, out = self._run(REGISTRY_SAMPLE, json=False, query="zzz")
+        self.assertEqual(rc, 0)
+        self.assertIn("no weapons match 'zzz'", out)
+
+    def test_query_json_filters(self):
+        rc, out = self._run(REGISTRY_SAMPLE, json=True, query="recon")
+        self.assertEqual(rc, 0)
+        payload = json.loads(out)
+        self.assertEqual(payload["count"], 1)
+        self.assertEqual(payload["query"], "recon")
+        self.assertEqual(payload["weapons"][0]["weapon"], "sniper")
+
 
 if __name__ == "__main__":
     unittest.main()

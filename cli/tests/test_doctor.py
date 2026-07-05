@@ -117,6 +117,34 @@ class TestDoctorChecks(unittest.TestCase):
         with mock.patch.object(doctor.runner, "run", return_value=_result("0\n")):
             self.assertEqual(doctor.check_apparmor_enforced().status, ui.Status.WARN)
 
+    def test_listening_external_is_info(self):
+        ss = (
+            'LISTEN 0 128 0.0.0.0:22 0.0.0.0:* users:(("sshd",pid=850,fd=3))\n'
+            'LISTEN 0 128 [::]:22 [::]:* users:(("sshd",pid=850,fd=4))\n'
+            'LISTEN 0 4096 127.0.0.1:323 0.0.0.0:* users:(("chronyd",pid=700,fd=5))\n'
+        )
+        with mock.patch.object(doctor.runner, "run", return_value=_result(ss)):
+            c = doctor.check_listening()
+        self.assertEqual(c.status, ui.Status.INFO)
+        self.assertIn("sshd:22", c.detail)
+        self.assertNotIn("chronyd", c.detail)  # loopback excluded
+        self.assertIn("1:", c.detail)  # IPv4+IPv6 collapsed to one service
+
+    def test_listening_loopback_only_is_ok(self):
+        ss = (
+            'LISTEN 0 4096 127.0.0.1:323 0.0.0.0:* users:(("chronyd",pid=700,fd=5))\n'
+            'LISTEN 0 128 [::1]:631 [::]:* users:(("cupsd",pid=9,fd=1))\n'
+        )
+        with mock.patch.object(doctor.runner, "run", return_value=_result(ss)):
+            self.assertEqual(doctor.check_listening().status, ui.Status.OK)
+
+    def test_listening_unavailable_is_info(self):
+        missing = runner.Result(["x"], 127, "", "", False, missing=True)
+        with mock.patch.object(doctor.runner, "run", return_value=missing):
+            c = doctor.check_listening()
+        self.assertEqual(c.status, ui.Status.INFO)
+        self.assertIn("unavailable", c.detail)
+
     def test_updates_available(self):
         with mock.patch.object(doctor.runner, "which", return_value="/usr/bin/checkupdates"):
             with mock.patch.object(doctor.runner, "run", return_value=_result("pkg1 1->2\npkg2 3->4\n")):

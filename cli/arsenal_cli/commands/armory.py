@@ -5,7 +5,9 @@ does — reading the same ``/usr/local/share/arsenal/registry`` that drives the
 profile.d launchers, so the two never drift.
 
 With ``--json`` it emits the same inventory as machine-readable JSON (weapon,
-tool, category, description, installed) for scripting and dashboards.
+tool, category, description, installed) for scripting and dashboards. An
+optional query filters weapons by name/tool/category/description (e.g.
+``arsenal armory web``).
 """
 from __future__ import annotations
 
@@ -32,10 +34,20 @@ def _iter_registry(text: str):
             yield parts[0], parts[1], parts[2], parts[3]
 
 
-def _inventory():
+def _match(query: str | None, *fields: str) -> bool:
+    """True if no query, or the (case-insensitive) query is a substring of any field."""
+    if not query:
+        return True
+    q = query.lower()
+    return any(q in f.lower() for f in fields)
+
+
+def _inventory(query: str | None = None):
     """Return the weapon registry as a list of dicts (machine-readable)."""
     rows = []
     for weapon, binary, category, desc in _iter_registry(config.REGISTRY.read_text()):
+        if not _match(query, weapon, binary, category, desc):
+            continue
         rows.append(
             {
                 "weapon": weapon,
@@ -48,18 +60,22 @@ def _inventory():
     return rows
 
 
-def _run_json() -> int:
+def _run_json(query: str | None = None) -> int:
     if not config.REGISTRY.is_file():
         print(json.dumps({"weapons": [], "count": 0, "error": "registry not found"}, indent=2))
         return 1
-    rows = _inventory()
-    print(json.dumps({"weapons": rows, "count": len(rows)}, indent=2))
+    rows = _inventory(query)
+    payload = {"weapons": rows, "count": len(rows)}
+    if query:
+        payload["query"] = query
+    print(json.dumps(payload, indent=2))
     return 0
 
 
 def run(args) -> int:
+    query = getattr(args, "query", None)
     if getattr(args, "json", False):
-        return _run_json()
+        return _run_json(query)
 
     print(ui.style(BANNER, ui.RED))
     print(ui.style("        white-hat security OS · the armory", ui.DIM))
@@ -77,6 +93,8 @@ def run(args) -> int:
 
     count = 0
     for weapon, binary, category, desc in _iter_registry(config.REGISTRY.read_text()):
+        if not _match(query, weapon, binary, category, desc):
+            continue
         installed = runner.which(binary) is not None
         dot = ui.style("●", ui.GREEN) if installed else ui.style("○", ui.DIM)
         print(
@@ -86,7 +104,12 @@ def run(args) -> int:
         count += 1
 
     print()
-    print("  " + ui.style(f"● installed   ○ not on this image   ({count} weapons)", ui.DIM))
+    if query and count == 0:
+        print("  " + ui.style(f"no weapons match {query!r}", ui.DIM))
+        return 0
+    tail = f"● installed   ○ not on this image   ({count} weapon{'s' if count != 1 else ''}"
+    tail += f" matching {query!r})" if query else ")"
+    print("  " + ui.style(tail, ui.DIM))
     print(
         "  "
         + ui.style("Call a weapon by name (e.g. ", ui.DIM)

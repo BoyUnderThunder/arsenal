@@ -27,9 +27,11 @@ platform — the builder, the Fortress hardening baseline, the Armory, the
   place (`GPG_PRIVATE_KEY` / `GPG_PASSPHRASE`); releases publish unsigned until
   a key is configured.
 - **`arsenal doctor` hardening posture checks** — kernel-hardening sysctls,
-  blacklisted-module load detection, and AppArmor-enforced-profile count — plus
+  blacklisted-module load detection, AppArmor-enforced-profile count, and a
+  network-exposure check (services listening beyond loopback) — plus
   `arsenal doctor --json` for machine-readable output.
-- **`arsenal armory --json`** machine-readable weapon inventory.
+- **`arsenal armory`** — `--json` machine-readable inventory and a positional
+  query that filters weapons by name/tool/category/description.
 - **Seven Armory weapons** — `howitzer` (masscan) and `prospector` (binwalk),
   plus `dissector` (radare2), `smith` (john), `vivisector` (gdb), `wiretap`
   (tcpdump) and `ghost` (proxychains) surfacing tools already in the image.

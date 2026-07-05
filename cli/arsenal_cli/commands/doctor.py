@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import socket
 from collections.abc import Callable
@@ -162,6 +163,37 @@ def check_internet() -> Check:
     return Check("Internet connectivity", ui.Status.WARN, "no outbound connection")
 
 
+def check_listening() -> Check:
+    """Report network services listening beyond loopback (attack surface).
+
+    Informational posture for an operator: which ports are reachable off the
+    box. INFO/OK only (never WARN/FAIL) — a live pentest ISO legitimately runs
+    sshd, so this surfaces exposure without crying wolf or affecting exit code.
+    """
+    res = runner.run(["ss", "-H", "-tlnp"], timeout=10)
+    if res.missing:
+        return Check("Listening services", ui.Status.INFO, "ss unavailable")
+    exposed: list[str] = []
+    for line in res.stdout.splitlines():
+        parts = line.split()
+        if len(parts) < 4:
+            continue
+        addr, _, port = parts[3].rpartition(":")  # local addr:port
+        if not port:
+            continue
+        host = addr.strip("[]")
+        if host in ("127.0.0.1", "::1") or host.startswith("127."):
+            continue  # loopback-only — not externally reachable
+        procs = re.findall(r'\("([^"]+)"', line)  # users:(("sshd",pid=…))
+        exposed.append(f"{procs[0] if procs else '?'}:{port}")
+    if not exposed:
+        return Check("No externally-exposed services", ui.Status.OK, "loopback only")
+    uniq = list(dict.fromkeys(exposed))  # collapse IPv4+IPv6 of the same service
+    shown = ", ".join(uniq[:5])
+    more = "" if len(uniq) <= 5 else f" (+{len(uniq) - 5} more)"
+    return Check("Externally-exposed services", ui.Status.INFO, f"{len(uniq)}: {shown}{more}")
+
+
 def check_disk() -> Check:
     # On the live ISO, `/` is an overlay whose writable layer is a RAM-backed
     # cowspace; statvfs("/") can report the read-only squashfs (~0 free), a
@@ -239,6 +271,7 @@ CHECKS: list[Callable[[], Check]] = [
     check_apparmor_enforced,
     check_blackarch,
     check_internet,
+    check_listening,
     check_disk,
     check_memory,
     check_version,

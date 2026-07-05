@@ -50,6 +50,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", metavar="<command>")
     ar = sub.add_parser("armory", help=_COMMANDS["armory"][1])
     ar.add_argument("--json", action="store_true", help="machine-readable JSON inventory")
+    ar.add_argument("query", nargs="?", help="filter weapons by name/tool/category/description")
     dr = sub.add_parser("doctor", help=_COMMANDS["doctor"][1])
     dr.add_argument("--json", action="store_true", help="machine-readable JSON output")
     rb = sub.add_parser("reportbug", help=_COMMANDS["reportbug"][1])
