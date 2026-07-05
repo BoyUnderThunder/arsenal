@@ -67,3 +67,8 @@ jobs:
           # completion must source cleanly and register (catches runtime parse errors)
           bash -c "source profile/airootfs/usr/share/bash-completion/completions/arsenal \
             && complete -p arsenal | grep -q _arsenal"
+
+      - name: Man page lint (mandoc)
+        run: |
+          sudo apt-get install -y --no-install-recommends mandoc
+          mandoc -T lint -W warning profile/airootfs/usr/share/man/man1/arsenal.1

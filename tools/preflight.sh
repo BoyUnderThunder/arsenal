@@ -47,6 +47,12 @@ else
     skip "ShellCheck" shellcheck
 fi
 
+if command -v mandoc >/dev/null 2>&1; then
+    step "man page lint" mandoc -T lint -W warning profile/airootfs/usr/share/man/man1/arsenal.1
+else
+    skip "man page lint" mandoc
+fi
+
 echo
 if [[ ${rc} -eq 0 ]]; then
     echo "PREFLIGHT OK ✔"

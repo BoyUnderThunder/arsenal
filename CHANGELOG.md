@@ -37,6 +37,8 @@ platform — the builder, the Fortress hardening baseline, the Armory, the
   (tcpdump) and `ghost` (proxychains) surfacing tools already in the image.
 - **Bash tab-completion** for the `arsenal` CLI (subcommands + options) on the
   live image.
+- **`man arsenal`** — a manual page on the live image, kept in lock-step with
+  the CLI by a drift-guard test and mandoc-linted in CI.
 - **Developer tooling.** `tools/preflight.sh` runs the CI fast-checks (ruff,
   CLI + provenance tests, ShellCheck) locally before pushing; a registry
   invariant test guards the weapon registry (4 fields, unique names, no
