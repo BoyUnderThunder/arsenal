@@ -48,6 +48,17 @@ platform — the builder, the Fortress hardening baseline, the Armory, the
 - CI runs a hardening self-test / integration gate on each build; `ci-test`
   lints and tests all of `cli/` and `tools/`.
 
+### Performance
+- **`arsenal doctor`** runs its checks concurrently on a thread pool instead of
+  serially. They are independent and almost all I/O-bound (sysctl / ss / pacman
+  / aa-status), so wall time drops to about the single slowest check — a large
+  speedup dominated by `pacman -Qkk` and `checkupdates`. Order and failure
+  isolation are unchanged.
+- **Faster ISO build + boot.** The airootfs squashfs now uses zstd (level 19)
+  instead of releng's xz: several times faster to compress (shorter builds) and
+  much faster to decompress (snappier live boot), at a near-identical size and
+  still deterministic. Set `ARSENAL_SQUASHFS_COMP=off` to keep xz.
+
 ### Fixed
 - Build resilience: the post-strap package-DB sync now retries with backoff
   instead of aborting the whole ~50-minute build the first time a (rolling

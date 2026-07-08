@@ -12,6 +12,7 @@ import re
 import shutil
 import socket
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from .. import runner, ui
@@ -281,16 +282,30 @@ CHECKS: list[Callable[[], Check]] = [
 ]
 
 
+def _safe(chk: Callable[[], Check]) -> Check:
+    """Run one check, turning a crash into an INFO result (never sinks the report)."""
+    try:
+        return chk()
+    except Exception as exc:  # a broken check must not sink the report
+        log.exception("check %s raised", getattr(chk, "__name__", chk))
+        name = getattr(chk, "__name__", "check").replace("check_", "")
+        return Check(name, ui.Status.INFO, f"check error: {exc}")
+
+
 def gather() -> list[Check]:
-    """Run every check, isolating failures."""
-    results: list[Check] = []
-    for chk in CHECKS:
-        try:
-            results.append(chk())
-        except Exception as exc:  # a broken check must not sink the report
-            log.exception("check %s raised", getattr(chk, "__name__", chk))
-            results.append(Check(getattr(chk, "__name__", "check").replace("check_", ""), ui.Status.INFO, f"check error: {exc}"))
-    return results
+    """Run every check and return results in CHECKS order.
+
+    The checks are independent and almost all I/O-bound (they shell out to
+    sysctl / ss / pacman / aa-status / …), so they run on a thread pool: the
+    report's wall time drops to roughly the single slowest check instead of the
+    sum of all of them. ``ThreadPoolExecutor.map`` preserves input order and
+    ``_safe`` isolates failures, so behaviour is otherwise identical to a serial
+    run.
+    """
+    if not CHECKS:
+        return []
+    with ThreadPoolExecutor(max_workers=min(len(CHECKS), 16)) as pool:
+        return list(pool.map(_safe, CHECKS))
 
 
 def run(args) -> int:

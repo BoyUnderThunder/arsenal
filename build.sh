@@ -15,6 +15,7 @@
 #    ARSENAL_WORK=<dir>          mkarchiso work dir (default: ./work)
 #    ARSENAL_OUT=<dir>           ISO output dir (default: ./out)
 #    SKIP_STRAP=1               assume BlackArch repo is already configured
+#    ARSENAL_SQUASHFS_COMP=off   keep releng's xz squashfs (default: zstd, faster)
 # =============================================================================
 set -euo pipefail
 
@@ -197,6 +198,30 @@ chmod 0755 "${PROFILE}/airootfs/usr/local/bin/arsenal" \
 sed -i '/file_permissions=(/a\  ["/usr/local/bin/arsenal"]="0:0:755"\n  ["/usr/local/bin/arsenal-selftest"]="0:0:755"' "${PROFILE}/profiledef.sh"
 grep -q 'usr/local/bin/arsenal-selftest' "${PROFILE}/profiledef.sh" \
     || c_die "could not inject file_permissions into profiledef.sh (unexpected format)."
+
+# -----------------------------------------------------------------------------
+# 6b. Faster squashfs: zstd instead of releng's default xz
+# -----------------------------------------------------------------------------
+# releng compresses the airootfs with xz — the single biggest chunk of build
+# time, and the slowest to decompress at boot. zstd at a high level reaches a
+# very similar ratio while compressing several times faster and decompressing
+# far faster (snappier live boot). It stays deterministic, so reproducible
+# builds are unaffected. Fallback-safe: if releng ever changes the option line
+# so our replacement misses, we log it and keep the xz default rather than fail.
+# Override the level with ARSENAL_SQUASHFS_COMP=off to keep releng's xz.
+if [[ "${ARSENAL_SQUASHFS_COMP:-zstd}" != "off" ]] \
+   && grep -q '^airootfs_image_tool_options=' "${PROFILE}/profiledef.sh"; then
+    sed -i \
+        "s#^airootfs_image_tool_options=.*#airootfs_image_tool_options=('-comp' 'zstd' '-Xcompression-level' '19' '-b' '1M')#" \
+        "${PROFILE}/profiledef.sh"
+    if grep -q "'-comp' 'zstd'" "${PROFILE}/profiledef.sh"; then
+        c_log "squashfs compression: zstd level 19 (faster build + boot than releng xz)."
+    else
+        c_log "WARN: could not switch squashfs to zstd (profiledef format changed) — keeping xz."
+    fi
+else
+    c_log "squashfs compression: releng default (zstd override disabled or option line absent)."
+fi
 
 # -----------------------------------------------------------------------------
 # 7. BlackArch repo for the build's pacman
