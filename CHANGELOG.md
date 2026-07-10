@@ -30,8 +30,11 @@ platform — the builder, the Fortress hardening baseline, the Armory, the
   blacklisted-module load detection, AppArmor-enforced-profile count, and a
   network-exposure check (services listening beyond loopback) — plus
   `arsenal doctor --json` for machine-readable output.
-- **`arsenal armory`** — `--json` machine-readable inventory and a positional
-  query that filters weapons by name/tool/category/description.
+- **`arsenal armory`** — `--json` machine-readable inventory, a positional
+  query that filters weapons by name/tool/category/description, and
+  `--installed` / `--missing` to filter by whether the tool is on the image.
+  The table and `--json` now render from one shared inventory (which the
+  dashboard's weapon count reuses too), so the views can't drift.
 - **Seven Armory weapons** — `howitzer` (masscan) and `prospector` (binwalk),
   plus `dissector` (radare2), `smith` (john), `vivisector` (gdb), `wiretap`
   (tcpdump) and `ghost` (proxychains) surfacing tools already in the image.

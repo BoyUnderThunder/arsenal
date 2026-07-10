@@ -29,7 +29,8 @@ _arsenal() {
         opts="${commands} ${global_opts}"
     else
         case "${sub}" in
-            armory|doctor) opts="--json" ;;
+            armory)        opts="--json --installed --missing" ;;
+            doctor)        opts="--json" ;;
             reportbug)     opts="--no-redact --output -o" ;;
             update)        opts="--check -y --no-snapshot" ;;
             *)             opts="--help" ;;

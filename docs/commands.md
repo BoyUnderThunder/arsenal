@@ -4,11 +4,13 @@
 `--version`. With no command, prints the armory. Logs: `/var/log/arsenal/arsenal.log`.
 Bash tab-completion for subcommands and options ships on the live image.
 
-## `armory [QUERY] [--json]` (default)
+## `armory [QUERY] [--installed|--missing] [--json]` (default)
 Print the weapon registry (weapon → tool → category → description) with `●`/`○`
 showing installed tools. See [weapon framework](weapon-framework.md).
 - `QUERY` — filter to weapons whose name/tool/category/description contains the
   term (case-insensitive), e.g. `arsenal armory web`.
+- `--installed` / `--missing` — filter by whether the tool is present on this
+  image (combines with `QUERY`).
 - `--json` — machine-readable inventory (`{weapons[], count}`, each weapon with
   `installed`) for scripting and dashboards.
 
