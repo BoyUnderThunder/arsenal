@@ -152,6 +152,11 @@ rm -f "${PROFILE}/airootfs/etc/mkinitcpio.d/linux.preset"
 
 # Point all boot loaders at the hardened kernel + initramfs.
 mapfile -d '' BOOTCFG < <(find "${PROFILE}/syslinux" "${PROFILE}/efiboot" "${PROFILE}/grub" -type f -print0 2>/dev/null)
+# The stock `linux` package was just dropped, so the bootloaders MUST be
+# repointed at the hardened kernel. If releng ever renames these dirs so `find`
+# returns nothing, fail loud rather than ship an ISO that boots a now-absent
+# vmlinuz-linux and silently misses the AppArmor cmdline.
+((${#BOOTCFG[@]})) || c_die "no bootloader configs found under syslinux/efiboot/grub (releng layout changed) — refusing to build an unbootable/unhardened ISO."
 if ((${#BOOTCFG[@]})); then
     sed -i \
         -e 's/vmlinuz-linux\b/vmlinuz-linux-hardened/g' \

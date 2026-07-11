@@ -37,6 +37,17 @@ class TestFactory(unittest.TestCase):
         prov = get_provider(config.load(), provider="openai")
         self.assertEqual(prov.name, "openai")
 
+    def test_openai_default_base_url_falls_back_to_openai(self):
+        prov = get_provider(config.load(), provider="openai")
+        self.assertEqual(prov.base_url, "https://api.openai.com")
+
+    def test_openai_custom_gateway_on_11434_is_preserved(self):
+        # A configured OpenAI-compatible gateway must survive even on :11434.
+        cfg = config.load()
+        cfg.set("ai", "base_url", "http://gw.local:11434")
+        prov = get_provider(cfg, provider="openai")
+        self.assertEqual(prov.base_url, "http://gw.local:11434")
+
 
 class TestProviders(unittest.TestCase):
     def test_ollama_chat_parses(self):

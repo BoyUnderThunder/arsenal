@@ -3,6 +3,7 @@ chain of tools, records results into a project, and writes a report."""
 from __future__ import annotations
 
 import datetime
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -13,6 +14,36 @@ from ..project import Project, Step
 from ..report import render_html, render_markdown
 
 log = get_logger(__name__)
+
+# Flags whose following value is a secret (password / NTLM hash).
+_SECRET_FLAGS = frozenset({"-p", "--password", "-H", "--hashes", "-hashes"})
+# Impacket-style inline credentials: domain/user:password — the required "/"
+# before the ":" keeps this from ever matching a plain host:port, and masking to
+# end of token means a password containing "@" can't partially leak.
+_INLINE_CREDS = re.compile(r"^([^\s:]*/[^\s:]+:)\S+$")
+
+
+def redact_command(argv: list[str]) -> str:
+    """Join ``argv`` for storage/display with passwords and hashes masked.
+
+    The engagement JSON and the rendered report must never carry cleartext
+    credentials; the process still runs with the real ``argv`` (see
+    ``_run_task``). Masks the value after a secret flag and the password part of
+    an ``domain/user:password`` token.
+    """
+    out: list[str] = []
+    mask_next = False
+    for tok in argv:
+        if mask_next:
+            out.append("****")
+            mask_next = False
+        elif tok in _SECRET_FLAGS:
+            out.append(tok)
+            mask_next = True
+        else:
+            m = _INLINE_CREDS.match(tok)
+            out.append(f"{m.group(1)}****" if m else tok)
+    return " ".join(out)
 
 # Common locations for a web-content wordlist (seclists etc. are not bundled).
 WORDLIST_CANDIDATES = [
@@ -123,7 +154,7 @@ class Workflow:
     def _run_task(self, proj: Project, task: Task) -> None:
         step = Step(
             name=task.name,
-            command=" ".join(task.argv) if task.argv else task.note,
+            command=redact_command(task.argv) if task.argv else task.note,
             started=datetime.datetime.now().strftime("%H:%M:%S"),
         )
 
@@ -153,10 +184,16 @@ class Workflow:
         step.output_file = str(out_file)
         step.returncode = res.returncode
         step.finished = datetime.datetime.now().strftime("%H:%M:%S")
-        if res.timed_out:
-            step.status, step.summary = "fail", "timed out"
-        elif res.ok:
+        if res.ok:
             step.status = "ok"
+        elif task.optional:
+            # An optional tool failing (or timing out) must not sink the
+            # engagement — record it non-fatally (skipped → WARN, not counted as
+            # a failure) while still keeping its output on disk.
+            reason = "timed out" if res.timed_out else f"exit {res.returncode}"
+            step.status, step.summary = "skipped", f"optional — {reason} (non-fatal)"
+        elif res.timed_out:
+            step.status, step.summary = "fail", "timed out"
         else:
             step.status = "fail"
 
