@@ -17,7 +17,17 @@ on:
       - "profile/airootfs/usr/share/bash-completion/**"
       - "profile/airootfs/usr/share/man/**"
       - ".github/workflows/ci-test.yml"
+  # Gate every PR into main with the full fast suite (path-independent — a PR is
+  # a deliberate merge, worth the ~5-min check regardless of which files moved,
+  # and this covers fork PRs that the push trigger doesn't).
+  pull_request:
+    branches: ["main"]
   workflow_dispatch:
+
+# Cancel superseded runs on the same branch/PR (rapid re-pushes).
+concurrency:
+  group: ci-test-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -69,6 +79,7 @@ jobs:
             tools/smoke-test.sh \
             tools/integration-test.sh \
             tools/verify-release.sh \
+            tools/preflight.sh \
             build.sh
           # completion must source cleanly and register (catches runtime parse errors)
           bash -c "source profile/airootfs/usr/share/bash-completion/completions/arsenal \
