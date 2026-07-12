@@ -59,6 +59,9 @@ platform — the builder, the Fortress hardening baseline, the Armory, the
 - `recon` runs a single content-discovery pass (gobuster) instead of gobuster
   **and** ffuf over the same wordlist; ffuf stays available as the `jackhammer`
   weapon.
+- Test coverage for previously-untested modules (`log`, `version`, `config`, and
+  the workflow command/authorization layer); removed the stale hardcoded
+  `run_id` defaults from the manual boot-test / integration-test workflows.
 
 ### Performance
 - **`arsenal doctor`** runs its checks concurrently on a thread pool instead of

@@ -11,7 +11,6 @@ on:
       run_id:
         description: "Run ID that produced the arsenal-iso artifact"
         required: true
-        default: "27930405747"
 
 permissions:
   actions: read
