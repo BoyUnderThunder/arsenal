@@ -55,6 +55,17 @@ class TestPlans(unittest.TestCase):
         self.assertEqual(as_url("example.com"), "http://example.com")
         self.assertEqual(as_url("https://x"), "https://x")
 
+    def test_nmap_findings_producer(self):
+        producer = recon_mod._nmap_findings("10.0.0.1")
+        res = ok_result("22/tcp open ssh OpenSSH 9.0\n80/tcp open http nginx\n"
+                        "Nmap done: 1 IP address\n")
+        findings = producer(res)
+        self.assertEqual(len(findings), 2)  # only the two open-port lines
+        self.assertEqual(findings[0].severity, "info")
+        self.assertEqual(findings[0].target, "10.0.0.1")
+        self.assertIn("22", findings[0].title)
+        self.assertIn("ssh", findings[0].title)
+
 
 class TestRun(unittest.TestCase):
     def setUp(self):
@@ -80,6 +91,19 @@ class TestRun(unittest.TestCase):
             self.assertTrue(any(s.name == "nmap" and s.status == "ok" for s in proj.steps))
             self.assertTrue((projects[0] / "report" / "report.html").is_file())
             self.assertEqual(rc, 0)
+
+    def test_run_records_findings_from_nmap(self):
+        # The nmap `find` producer must turn open ports into persisted findings.
+        with tempfile.TemporaryDirectory() as td:
+            with mock.patch.object(runner, "which", return_value="/usr/bin/tool"), \
+                 mock.patch.object(runner, "run", return_value=ok_result("22/tcp open ssh\n")), \
+                 mock.patch.object(recon_mod, "find_wordlist", return_value=None):
+                with redirect_stdout(io.StringIO()):
+                    ReconWorkflow("example.com", base=Path(td)).run()
+            proj = Project.load(list(Path(td).glob("recon-*"))[0])
+            self.assertTrue(proj.findings)
+            self.assertEqual(proj.findings[0].severity, "info")
+            self.assertIn("22", proj.findings[0].title)
 
     def test_run_skips_missing_tool(self):
         with tempfile.TemporaryDirectory() as td:

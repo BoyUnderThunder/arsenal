@@ -7,7 +7,7 @@ from pathlib import Path
 
 from arsenal_cli import ui
 from arsenal_cli.commands import report as report_cmd
-from arsenal_cli.project import Project, Step
+from arsenal_cli.project import Finding, Project, Step
 from arsenal_cli.report import render_html, render_markdown, render_pdf
 
 
@@ -43,6 +43,35 @@ class TestRenderers(unittest.TestCase):
             self.assertTrue(Path(msg).exists())
         else:
             self.assertIn("WeasyPrint", msg)
+
+    def test_findings_render_markdown_sorted_with_counts(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = _sample(Path(td))
+            p.add_finding(Finding("Info thing", severity="info", target="a"))
+            p.add_finding(Finding("Critical RCE", severity="critical", target="b",
+                                  refs=["CVE-2021-1"]))
+            md = render_markdown(p)
+        self.assertIn("## Findings", md)
+        self.assertIn("2 finding(s)", md)
+        self.assertIn("1 critical", md)
+        # critical row must appear before the info row (most-severe first)
+        self.assertLess(md.index("Critical RCE"), md.index("Info thing"))
+        self.assertIn("CVE-2021-1", md)
+
+    def test_findings_render_html_with_severity_class_and_escaped(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = _sample(Path(td))
+            p.add_finding(Finding("XSS <script>", severity="high", target="c"))
+            html = render_html(p)
+        self.assertIn("<h2>Findings</h2>", html)
+        self.assertIn("sev-high", html)
+        self.assertIn("&lt;script&gt;", html)  # finding title escaped
+        self.assertNotIn("<script>", html)
+
+    def test_no_findings_section_when_empty(self):
+        with tempfile.TemporaryDirectory() as td:
+            md = render_markdown(_sample(Path(td)))
+        self.assertNotIn("## Findings", md)
 
     def test_markdown_cells_stay_single_line(self):
         with tempfile.TemporaryDirectory() as td:

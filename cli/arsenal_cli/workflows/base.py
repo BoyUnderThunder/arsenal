@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .. import runner, ui
 from ..log import get_logger
-from ..project import Project, Step
+from ..project import SEVERITIES, Finding, Project, Step
 from ..report import render_html, render_markdown
 
 log = get_logger(__name__)
@@ -92,6 +92,8 @@ class Task:
     optional: bool = False
     ext: str = "txt"
     summarize: Callable[[runner.Result], str] | None = None
+    # Optional producer: turn a tool's result into structured Findings.
+    find: Callable[[runner.Result], list[Finding]] | None = None
     note: str = ""
 
 
@@ -148,6 +150,10 @@ class Workflow:
             f"{self.kind} complete",
             f"{counts['ok']} ok · {counts['fail']} failed · {counts['skipped']} skipped",
         )
+        if proj.findings:
+            fc = proj.finding_counts()
+            brk = " · ".join(f"{fc[s]} {s}" for s in SEVERITIES if fc[s])
+            print("  " + ui.style(f"findings: {len(proj.findings)} — {brk}", ui.DIM))
         print("  " + ui.style(f"report: {report_dir / 'report.html'}", ui.DIM))
         return 0 if counts["fail"] == 0 else 1
 
@@ -204,6 +210,13 @@ class Workflow:
                 log.exception("summariser for %s failed", task.name)
         if not step.summary:
             step.summary = first_lines(res.stdout) or f"exit {res.returncode}"
+
+        if task.find and not res.timed_out:
+            try:
+                for finding in task.find(res) or []:
+                    proj.add_finding(finding)
+            except Exception:  # a finding producer bug must not break the workflow
+                log.exception("finding producer for %s failed", task.name)
 
         status_ui = {
             "ok": ui.Status.OK,

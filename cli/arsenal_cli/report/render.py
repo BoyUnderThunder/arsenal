@@ -5,9 +5,16 @@ from __future__ import annotations
 import datetime
 import html
 
-from ..project import Project
+from ..project import SEVERITIES, Project
 
 _STATUS_EMOJI = {"ok": "✓", "fail": "✗", "skipped": "–", "pending": "…"}
+
+
+def _sev_line(p: Project) -> str:
+    """e.g. '3 findings — 1 high · 2 info' (non-zero severities, most-severe first)."""
+    fc = p.finding_counts()
+    parts = [f"{fc[s]} {s}" for s in SEVERITIES if fc[s]]
+    return f"{len(p.findings)} finding(s)" + (" — " + " · ".join(parts) if parts else "")
 
 
 def _cell(text) -> str:
@@ -31,6 +38,17 @@ def render_markdown(p: Project) -> str:
         a("## Summary")
         a("")
         a(p.summary)
+        a("")
+    if p.findings:
+        a("## Findings")
+        a("")
+        a(_sev_line(p))
+        a("")
+        a("| Severity | Title | Target | Evidence | Refs |")
+        a("|----------|-------|--------|----------|------|")
+        for f in p.findings_sorted():
+            a(f"| {_cell(f.severity)} | {_cell(f.title)} | {_cell(f.target)} "
+              f"| {_cell(f.evidence)} | {_cell(', '.join(f.refs))} |")
         a("")
     c = p.counts()
     a("## Steps")
@@ -75,6 +93,8 @@ code,pre{background:#0f1115;border:1px solid var(--border);border-radius:4px}
 pre{padding:.8rem;overflow:auto}code{padding:.1rem .3rem}
 .ok{color:var(--green)}.fail{color:var(--red)}.skip{color:var(--muted)}
 .badge{font-weight:bold}.footer{margin-top:3rem;color:var(--muted);font-size:.85rem}
+.sev-critical{color:#ff4d4f;font-weight:bold}.sev-high{color:#ff7043;font-weight:bold}
+.sev-medium{color:#ffb300}.sev-low{color:var(--cyan)}.sev-info{color:var(--muted)}
 """
 
 
@@ -103,6 +123,25 @@ def render_html(p: Project) -> str:
             detail.append(f"<p class='meta'>Output: <code>{_h(s.output_file)}</code></p>")
     c = p.counts()
     summary_block = f"<h2>Summary</h2><p>{_h(p.summary)}</p>" if p.summary else ""
+
+    findings_block = ""
+    if p.findings:
+        frows = []
+        for f in p.findings_sorted():
+            sev_cls = f"sev-{str(f.severity).lower()}"
+            refs = _h(", ".join(f.refs))
+            frows.append(
+                f"<tr><td class='{sev_cls} badge'>{_h(f.severity)}</td>"
+                f"<td>{_h(f.title)}</td><td>{_h(f.target)}</td>"
+                f"<td>{_h(f.evidence)}</td><td>{refs}</td></tr>"
+            )
+        findings_block = (
+            "<h2>Findings</h2>"
+            f"<p class='meta'>{_h(_sev_line(p))}</p>"
+            "<table><thead><tr><th>Severity</th><th>Title</th><th>Target</th>"
+            "<th>Evidence</th><th>Refs</th></tr></thead>"
+            f"<tbody>{''.join(frows)}</tbody></table>"
+        )
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <title>Arsenal Report — {_h(p.name)}</title><style>{_CSS}</style></head>
@@ -111,6 +150,7 @@ def render_html(p: Project) -> str:
 <p class="meta">Target: {_h(p.target or '—')} &nbsp;·&nbsp; Type: {_h(p.kind)}
 &nbsp;·&nbsp; Created: {_h(p.created)} &nbsp;·&nbsp; Arsenal: {_h(p.arsenal_version)}</p>
 {summary_block}
+{findings_block}
 <h2>Steps</h2>
 <p class="meta">{c['ok']} ok · {c['fail']} failed · {c['skipped']} skipped</p>
 <table><thead><tr><th>Step</th><th>Status</th><th>rc</th><th>Summary</th></tr></thead>

@@ -12,6 +12,12 @@ platform — the builder, the Fortress hardening baseline, the Armory, the
 ## [Unreleased]
 
 ### Added
+- **Findings/severity model in engagement reports.** Workflows can now surface
+  structured `Finding`s (title, severity critical→info, target, evidence, refs)
+  alongside the step log; reports render a severity-sorted **Findings** section
+  with counts in both Markdown and HTML, and the recon workflow turns nmap's
+  open ports into findings. Persisted in `arsenal.json` (old projects still
+  load). Turns a report from a step-list into an assessment.
 - **Supply-chain provenance.** Every build emits a lockfile plus
   [CycloneDX](https://cyclonedx.org/) 1.5 and [SPDX](https://spdx.dev/) 2.3
   SBOMs (`tools/gen_sbom.py`) generated from the built image's own pacman

@@ -2,12 +2,30 @@
 from __future__ import annotations
 
 from .. import runner
-from .base import Task, Workflow, as_host, as_url, find_wordlist, first_lines
+from .base import Finding, Task, Workflow, as_host, as_url, find_wordlist, first_lines
+
+
+def _open_ports(stdout: str) -> list[str]:
+    return [ln.strip() for ln in stdout.splitlines() if "/tcp" in ln and "open" in ln]
 
 
 def _nmap_summary(res: runner.Result) -> str:
-    opens = [ln for ln in res.stdout.splitlines() if "/tcp" in ln and "open" in ln]
+    opens = _open_ports(res.stdout)
     return f"{len(opens)} open TCP port(s)" if opens else first_lines(res.stdout)
+
+
+def _nmap_findings(host: str):
+    """Turn nmap's open-port lines into informational findings (attack surface)."""
+    def producer(res: runner.Result) -> list[Finding]:
+        out: list[Finding] = []
+        for line in _open_ports(res.stdout):
+            port = line.split("/", 1)[0].strip()
+            parts = line.split()
+            svc = parts[2] if len(parts) >= 3 else ""
+            title = f"Open TCP port {port}" + (f" ({svc})" if svc else "")
+            out.append(Finding(title=title, severity="info", target=host, evidence=line))
+        return out
+    return producer
 
 
 class ReconWorkflow(Workflow):
@@ -18,7 +36,7 @@ class ReconWorkflow(Workflow):
         host, url = as_host(self.target), as_url(self.target)
         tasks = [
             Task("nmap", ["nmap", "-sV", "-Pn", "-T4", host], timeout=1200,
-                 summarize=_nmap_summary),
+                 summarize=_nmap_summary, find=_nmap_findings(host)),
         ]
         wordlist = find_wordlist(self.wordlist)
         if wordlist:
