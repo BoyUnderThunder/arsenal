@@ -11,6 +11,7 @@ from pathlib import Path
 from .. import config, ui
 from ..ai import assistant
 from ..ai.provider import ProviderError, get_provider
+from ..project import Project
 
 NAME = "ai"
 HELP = "ask the Arsenal AI assistant (local Ollama or API)"
@@ -20,8 +21,26 @@ def add_arguments(parser) -> None:
     parser.add_argument("prompt", nargs="*", help="your question")
     parser.add_argument("--tool", help="explain a security tool or command")
     parser.add_argument("--log", help="explain a log / findings file")
+    parser.add_argument("--summarize", metavar="PROJECT",
+                        help="write an executive summary into an engagement project")
     parser.add_argument("--provider", help="override provider (ollama|openai)")
     parser.add_argument("--model", help="override model")
+
+
+def _project_context(proj: Project) -> str:
+    """Bounded, redacted context for the summary — structured fields only (never
+    raw scan output), so the prompt-injection surface stays small."""
+    lines = [f"Engagement: {proj.name} · kind={proj.kind} · target={proj.target or '—'}"]
+    if proj.findings:
+        lines.append("Findings:")
+        for f in proj.findings_sorted():
+            loc = f" @ {f.target}" if f.target else ""
+            ev = f" — {f.evidence}" if f.evidence else ""
+            lines.append(f"- [{f.severity}] {f.title}{loc}{ev}")
+    lines.append("Steps:")
+    for s in proj.steps:
+        lines.append(f"- {s.name}: {s.status} — {s.summary}")
+    return assistant.truncate("\n".join(lines))
 
 
 def _unavailable_hint(name: str) -> None:
@@ -43,6 +62,28 @@ def run(args) -> int:
         return 1
 
     context = ""
+    summarize = getattr(args, "summarize", None)
+    if summarize:
+        ppath = Path(summarize)
+        if not (ppath / "arsenal.json").is_file():
+            ui.print_status(ui.Status.FAIL, f"no engagement at {ppath}", "expected an arsenal.json")
+            return 1
+        proj = Project.load(ppath)
+        prompt = assistant.summary_prompt()
+        context = _project_context(proj)
+        print(ui.style(f"[arsenal ai · {provider.name}] summarizing {proj.name}…", ui.DIM))
+        try:
+            answer = assistant.ask(provider, prompt, context)
+        except ProviderError as exc:
+            ui.print_status(ui.Status.FAIL, "AI request failed", str(exc))
+            return 1
+        proj.summary = (answer or "").strip()
+        proj.save()
+        print(answer or ui.style("(empty response)", ui.DIM))
+        ui.print_status(ui.Status.OK, "summary saved to project",
+                        "regenerate the report to include it: arsenal report " + str(ppath))
+        return 0
+
     if args.tool:
         prompt = assistant.tool_prompt(args.tool)
     elif args.log:

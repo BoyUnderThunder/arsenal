@@ -32,6 +32,7 @@ _arsenal() {
             armory)        opts="--json --installed --missing" ;;
             doctor)        opts="--json" ;;
             engagements)   opts="list show rerun delete archive -y --yes -o --output" ;;
+            ai)            opts="--tool --log --summarize --provider --model" ;;
             reportbug)     opts="--no-redact --output -o" ;;
             update)        opts="--check -y --no-snapshot" ;;
             *)             opts="--help" ;;

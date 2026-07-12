@@ -35,8 +35,10 @@ Collect a compressed support bundle (journalctl, dmesg, hardware, packages,
 services, version). Sensitive data redacted by default. See
 [troubleshooting](troubleshooting.md).
 
-## `ai [PROMPT…] [--tool T] [--log FILE] [--provider P] [--model M]`
-Ask the AI assistant. See [AI assistant](ai.md).
+## `ai [PROMPT…] [--tool T] [--log FILE] [--summarize PROJECT] [--provider P] [--model M]`
+Ask the AI assistant. `--summarize <project>` writes an executive summary into an
+engagement (from its redacted findings/steps — never raw scan output); regenerate
+the report to include it. See [AI assistant](ai.md).
 
 ## `recon|web|ad <target> [-y] [--dry-run] [--name N] [-o DIR]`
 Run a multi-tool workflow into an engagement project. Active testing requires an

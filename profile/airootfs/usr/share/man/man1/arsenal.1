@@ -92,9 +92,12 @@ against authorized hosts.
 .B profile
 Manage package/tooling profiles (e.g. full vs. lean toolkits).
 .TP
-.B ai " [\fIPROMPT\fR ...]"
+.B ai " [\fIPROMPT\fR ...] [\-\-tool T] [\-\-log F] [\-\-summarize \fIPROJECT\fR]"
 Ask the built-in AI assistant (optional; degrades gracefully when no provider
 is configured).
+.B \-\-summarize
+writes an executive summary into an engagement project (regenerate its report
+to include it).
 .TP
 .B dashboard
 Show a consolidated status dashboard for the live system.

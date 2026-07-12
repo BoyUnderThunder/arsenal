@@ -111,6 +111,36 @@ class TestAICommand(unittest.TestCase):
                     prompt=[], tool=None, log=None, provider=None, model=None))
         self.assertEqual(rc, 1)
 
+    def test_summarize_writes_project_summary(self):
+        import tempfile
+        from pathlib import Path
+
+        from arsenal_cli.project import Finding, Project, Step
+
+        fp = FakeProvider(ok=True, reply="Executive summary: 1 open port on 10.0.0.1.")
+        with tempfile.TemporaryDirectory() as td:
+            p = Project.create("eng", kind="recon", target="10.0.0.1", base=Path(td))
+            p.add_step(Step(name="nmap", status="ok", summary="1 open port"))
+            p.add_finding(Finding("Open port 22", "info", "10.0.0.1"))
+            with mock.patch.object(ai_cmd, "get_provider", return_value=fp):
+                with redirect_stdout(io.StringIO()):
+                    rc = ai_cmd.run(types.SimpleNamespace(
+                        prompt=[], tool=None, log=None, summarize=str(p.path),
+                        provider=None, model=None))
+            self.assertEqual(rc, 0)
+            self.assertIn("Executive summary", Project.load(p.path).summary)  # persisted
+            # context fed to the model carries the structured finding (not raw output)
+            self.assertIn("Open port 22", fp.seen[1]["content"])
+
+    def test_summarize_missing_project(self):
+        fp = FakeProvider(ok=True)
+        with mock.patch.object(ai_cmd, "get_provider", return_value=fp):
+            with redirect_stdout(io.StringIO()):
+                rc = ai_cmd.run(types.SimpleNamespace(
+                    prompt=[], tool=None, log=None, summarize="/no/such/proj",
+                    provider=None, model=None))
+        self.assertEqual(rc, 1)
+
 
 if __name__ == "__main__":
     unittest.main()
