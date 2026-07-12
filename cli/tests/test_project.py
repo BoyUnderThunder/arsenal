@@ -71,6 +71,20 @@ class TestProject(unittest.TestCase):
             reloaded = Project.load(p.path)
             self.assertEqual(reloaded.findings, [])
 
+    def test_schema_stamped_and_load_ignores_unknown_fields(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Project.create("eng", base=Path(td))
+            self.assertEqual(p.schema, 1)  # schema version stamped
+            data = json.loads((p.path / "arsenal.json").read_text())
+            data["future_field"] = "from a newer Arsenal"          # unknown top-level key
+            data["steps"] = [{"name": "s", "status": "ok", "wat": True}]   # unknown step key
+            data["findings"] = [{"title": "f", "severity": "info", "zzz": 9}]  # unknown finding key
+            (p.path / "arsenal.json").write_text(json.dumps(data))
+            reloaded = Project.load(p.path)  # must not raise on unknown keys
+            self.assertEqual(reloaded.name, "eng")
+            self.assertEqual(reloaded.steps[0].name, "s")
+            self.assertEqual(reloaded.findings[0].title, "f")
+
 
 if __name__ == "__main__":
     unittest.main()

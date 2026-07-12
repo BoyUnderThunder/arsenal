@@ -47,6 +47,11 @@ authorization confirmation (or `-y`). See [workflows](workflows.md).
 Render an engagement project (`arsenal.json`) to Markdown / HTML / PDF (PDF via
 WeasyPrint if installed).
 
+## `engagements [list|show|rerun|delete|archive] [DIR] [-y] [-o OUT]`
+Manage recorded engagement projects under `~/engagements`: `list` (default) all
+of them, `show` one, `rerun` its workflow (with the authorization prompt),
+`archive` it to a tarball, or `delete` it. See [workflows](workflows.md).
+
 ## `profile [<name>|list] [--show] [-y]`
 Install a curated toolset: `red`, `blue`, `forensics`, `reverse`. `list` shows
 profiles; `--show` lists packages without installing. Install requires root.

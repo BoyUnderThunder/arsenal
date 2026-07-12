@@ -71,6 +71,12 @@ Sensitive data is redacted by default.
 .B report
 Generate or manage engagement reports from recorded workflow runs.
 .TP
+.B engagements " [list|show|rerun|delete|archive] [\fIDIR\fR]"
+Manage recorded engagement projects under
+.IR ~/engagements :
+list them, show one, re-run its workflow (with the authorization prompt),
+archive it to a tarball, or delete it.
+.TP
 .B recon " \fITARGET\fR"
 Recon workflow: port/service scan plus web content discovery against an
 authorized target.

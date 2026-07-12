@@ -12,7 +12,7 @@ _arsenal() {
         words=("${COMP_WORDS[@]}")
     fi
 
-    local commands="armory doctor update reportbug report recon web ad profile ai dashboard"
+    local commands="armory doctor update reportbug report engagements recon web ad profile ai dashboard"
     local global_opts="--help --version --no-color --verbose"
 
     # Locate the subcommand: the first non-option word after the program name.
@@ -31,6 +31,7 @@ _arsenal() {
         case "${sub}" in
             armory)        opts="--json --installed --missing" ;;
             doctor)        opts="--json" ;;
+            engagements)   opts="list show rerun delete archive -y --yes -o --output" ;;
             reportbug)     opts="--no-redact --output -o" ;;
             update)        opts="--check -y --no-snapshot" ;;
             *)             opts="--help" ;;

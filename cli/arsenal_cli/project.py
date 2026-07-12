@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import datetime
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
 from .config import ENGAGEMENTS_DIR
@@ -17,6 +17,18 @@ from .version import os_version
 
 ISO_FMT = "%Y-%m-%dT%H:%M:%S"
 SUBDIRS = ("scans", "loot", "logs", "report")
+SCHEMA = 1  # arsenal.json schema version; bump on a breaking model change
+
+
+def _only(dc, d: dict) -> dict:
+    """Keep only keys that are fields of dataclass ``dc``.
+
+    Makes :meth:`Project.load` tolerant of both older files (missing keys use
+    defaults) and newer ones (unknown keys are ignored instead of raising), so
+    a project written by a different Arsenal version still opens.
+    """
+    keep = {f.name for f in fields(dc)}
+    return {k: v for k, v in d.items() if k in keep}
 
 # Severity levels, most- to least-severe (also the report display order).
 SEVERITIES = ("critical", "high", "medium", "low", "info")
@@ -70,6 +82,7 @@ class Project:
     target: str = ""
     created: str = ""
     arsenal_version: str = ""
+    schema: int = SCHEMA
     summary: str = ""  # free text / AI-generated summary (Phase 7)
     steps: list[Step] = field(default_factory=list)
     findings: list[Finding] = field(default_factory=list)
@@ -98,10 +111,10 @@ class Project:
     def load(cls, path) -> Project:
         path = Path(path)
         data = json.loads((path / "arsenal.json").read_text())
-        steps = [Step(**s) for s in data.pop("steps", [])]
-        findings = [Finding(**f) for f in data.pop("findings", [])]
+        steps = [Step(**_only(Step, s)) for s in data.pop("steps", [])]
+        findings = [Finding(**_only(Finding, f)) for f in data.pop("findings", [])]
         data.pop("path", None)
-        return cls(steps=steps, findings=findings, path=path, **data)
+        return cls(steps=steps, findings=findings, path=path, **_only(cls, data))
 
     # --- mutation ------------------------------------------------------------
     def add_step(self, step: Step) -> Step:
@@ -125,6 +138,16 @@ class Project:
     def scans_dir(self) -> Path:
         assert self.path is not None
         return self.path / "scans"
+
+    def loot_dir(self) -> Path:
+        """Directory for captured artifacts (hashes, dumps, downloads)."""
+        assert self.path is not None
+        return self.path / "loot"
+
+    def logs_dir(self) -> Path:
+        """Directory for run logs beyond per-step scan output."""
+        assert self.path is not None
+        return self.path / "logs"
 
     def counts(self) -> dict[str, int]:
         out = {"ok": 0, "fail": 0, "skipped": 0, "pending": 0}
