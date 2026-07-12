@@ -20,6 +20,10 @@ on:
       - "build.sh"
       - "tools/**"
       - ".github/workflows/build-iso.yml"
+  # Weekly drift check: rebuild main (lean, faster) so rolling-BlackArch
+  # breakage surfaces here — not the day someone tries to cut a release.
+  schedule:
+    - cron: "0 6 * * 1"
 
 concurrency:
   group: build-iso-${{ github.ref }}
@@ -47,7 +51,7 @@ jobs:
 
       - name: Build ISO in a privileged Arch container
         run: |
-          FLAVOR="${{ github.event.inputs.flavor || 'full' }}"
+          FLAVOR="${{ github.event.inputs.flavor || (github.event_name == 'schedule' && 'lean' || 'full') }}"
           echo "Building Arsenal flavor: ${FLAVOR}"
           docker run --privileged --rm \
             -v "$PWD":/repo \
@@ -94,6 +98,24 @@ jobs:
             /mnt/out/*.spdx.json
           retention-days: 30
           if-no-files-found: warn
+
+      - name: Verify provenance (independent SBOM check)
+        run: |
+          # Independent of build.sh's own (non-fatal) self-check: re-validate the
+          # uploaded SBOMs on the runner. Fails the build if the SBOM exists but
+          # is malformed / inconsistent; if provenance was skipped entirely
+          # (best-effort in build.sh), warn rather than fail.
+          cdx="$(find /mnt/out -maxdepth 1 -name '*.cdx.json' | head -n1)"
+          if [ -z "${cdx}" ]; then
+            echo "::warning::no CycloneDX SBOM in /mnt/out — provenance was skipped; nothing to verify"
+            exit 0
+          fi
+          spdx="$(find /mnt/out -maxdepth 1 -name '*.spdx.json' | head -n1)"
+          lock="$(find /mnt/out -maxdepth 1 -name '*.lock' | head -n1)"
+          args=(--sbom "${cdx}")
+          [ -n "${spdx}" ] && args+=(--spdx "${spdx}")
+          [ -n "${lock}" ] && args+=(--lock "${lock}")
+          python3 tools/verify-sbom.py "${args[@]}"
 
       - name: Integration test (hardening posture)
         run: |
