@@ -73,6 +73,26 @@ class TestRenderers(unittest.TestCase):
             md = render_markdown(_sample(Path(td)))
         self.assertNotIn("## Findings", md)
 
+    def test_scan_output_embedded_and_truncated(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Project.create("emb", kind="recon", base=Path(td))
+            scan = p.scans_dir() / "nmap.txt"
+            scan.write_text("22/tcp open ssh\n" + "\n".join(f"line{i}" for i in range(100)))
+            p.add_step(Step(name="nmap", status="ok", summary="ok", output_file=str(scan)))
+            md = render_markdown(p)
+            html = render_html(p)
+        self.assertIn("22/tcp open ssh", md)   # actual output embedded, not just a path
+        self.assertIn("truncated", md)          # long file was truncated
+        self.assertIn("<details>", html)
+        self.assertIn("22/tcp open ssh", html)
+
+    def test_missing_scan_file_is_tolerated(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Project.create("emb", base=Path(td))
+            p.add_step(Step(name="x", status="ok", output_file="/no/such/file.txt"))
+            md = render_markdown(p)  # must not raise on an unreadable output file
+        self.assertIn("x", md)
+
     def test_markdown_cells_stay_single_line(self):
         with tempfile.TemporaryDirectory() as td:
             p = Project.create("nl", kind="recon", base=Path(td))

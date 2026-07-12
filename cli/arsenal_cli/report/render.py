@@ -4,10 +4,27 @@ from __future__ import annotations
 
 import datetime
 import html
+from pathlib import Path
 
 from ..project import SEVERITIES, Project
 
 _STATUS_EMOJI = {"ok": "✓", "fail": "✗", "skipped": "–", "pending": "…"}
+
+
+def _snippet(output_file: str, max_lines: int = 40, max_chars: int = 4000) -> str:
+    """Read a step's saved scan output, truncated, for inline embedding. Empty
+    string if the file is missing/unreadable."""
+    if not output_file:
+        return ""
+    try:
+        text = Path(output_file).read_text(errors="replace")
+    except OSError:
+        return ""
+    lines = text.splitlines()
+    body = "\n".join(lines[:max_lines])[:max_chars].rstrip()
+    if len(lines) > max_lines or len(text) > max_chars:
+        body += "\n… (truncated — see the full file on disk)"
+    return body
 
 
 def _sev_line(p: Project) -> str:
@@ -72,6 +89,12 @@ def render_markdown(p: Project) -> str:
         if s.summary:
             a(s.summary)
         if s.output_file:
+            snippet = _snippet(s.output_file)
+            if snippet:
+                a("")
+                a("```")
+                a(snippet)
+                a("```")
             a(f"\n_Output:_ `{s.output_file}`")
         a("")
     return "\n".join(lines) + "\n"
@@ -120,6 +143,12 @@ def render_html(p: Project) -> str:
         if s.summary:
             detail.append(f"<p>{_h(s.summary)}</p>")
         if s.output_file:
+            snippet = _snippet(s.output_file)
+            if snippet:
+                detail.append(
+                    f"<details><summary>output ({_h(s.name)})</summary>"
+                    f"<pre>{_h(snippet)}</pre></details>"
+                )
             detail.append(f"<p class='meta'>Output: <code>{_h(s.output_file)}</code></p>")
     c = p.counts()
     summary_block = f"<h2>Summary</h2><p>{_h(p.summary)}</p>" if p.summary else ""
