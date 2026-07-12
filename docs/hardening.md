@@ -12,7 +12,9 @@ Arsenal ships hardened by default. Verify everything at runtime with
 - `apparmor` package + `apparmor.service` enabled.
 - Kernel cmdline: `lsm=landlock,lockdown,yama,integrity,apparmor,bpf
   apparmor=1 security=apparmor`.
-- `audit` is installed for AppArmor event logging.
+- `audit` is installed **and `auditd.service` is enabled** (via a
+  `multi-user.target.wants` symlink), so AppArmor denials and kernel audit
+  events are logged from boot. `arsenal doctor` reports the daemon's state.
 
 ## Firewall (nftables, default-deny)
 - `/etc/nftables.conf`: input policy **drop**; only loopback,

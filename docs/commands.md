@@ -19,7 +19,8 @@ System health & security diagnostics. Colour-coded `[✓]/[!]/[✗]/[i]`; exit c
 is non-zero only on a failed check. Checks: hardened kernel, AppArmor, nftables
 (default-deny), kernel-hardening sysctls, module blacklist, AppArmor enforce
 mode, BlackArch repo, internet, network exposure (listening services), disk,
-memory, version, pending updates, package integrity, critical services.
+memory, version, pending updates, package integrity, critical services, audit
+daemon.
 - `--json` — machine-readable output (`{checks[], summary, ok}`) for monitoring
   or scripting; same exit code as the human view.
 

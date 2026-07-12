@@ -62,6 +62,11 @@ platform — the builder, the Fortress hardening baseline, the Armory, the
   much faster to decompress (snappier live boot), at a near-identical size and
   still deterministic. Set `ARSENAL_SQUASHFS_COMP=off` to keep xz.
 
+### Security
+- **`auditd` is now enabled** on the live image (it shipped installed but
+  inert). AppArmor denials and kernel audit events are logged from boot, and
+  `arsenal doctor` reports the daemon's state.
+
 ### Fixed
 - Build resilience: the post-strap package-DB sync now retries with backoff
   instead of aborting the whole ~50-minute build the first time a (rolling

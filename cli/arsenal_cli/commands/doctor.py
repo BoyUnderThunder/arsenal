@@ -263,6 +263,18 @@ def check_services() -> Check:
     return Check("Critical services", ui.Status.WARN, "inactive: " + ", ".join(inactive))
 
 
+def check_auditd() -> Check:
+    """Report whether the audit daemon is running (carries AppArmor denials and
+    kernel audit events). Arsenal enables auditd.service; WARN if it isn't up."""
+    res = runner.run(["systemctl", "is-active", "auditd"], timeout=10)
+    if res.missing:
+        return Check("Audit daemon", ui.Status.INFO, "systemctl unavailable")
+    state = res.stdout.strip()
+    if state == "active":
+        return Check("Audit daemon active", ui.Status.OK, "auditd")
+    return Check("Audit daemon", ui.Status.WARN, f"auditd {state or 'inactive'}")
+
+
 CHECKS: list[Callable[[], Check]] = [
     check_kernel,
     check_apparmor,
@@ -279,6 +291,7 @@ CHECKS: list[Callable[[], Check]] = [
     check_updates,
     check_integrity,
     check_services,
+    check_auditd,
 ]
 
 
