@@ -28,7 +28,7 @@ class TestPlans(unittest.TestCase):
             names = [t.name for t in ReconWorkflow("example.com").plan()]
         self.assertEqual(names[0], "nmap")
         self.assertIn("gobuster", names)
-        self.assertIn("ffuf", names)
+        self.assertNotIn("ffuf", names)  # de-duped: one content-discovery pass, not two
 
     def test_recon_plan_without_wordlist(self):
         with mock.patch.object(recon_mod, "find_wordlist", return_value=None):

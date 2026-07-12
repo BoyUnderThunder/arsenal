@@ -56,6 +56,9 @@ platform — the builder, the Fortress hardening baseline, the Armory, the
 ### Changed
 - CI runs a hardening self-test / integration gate on each build; `ci-test`
   lints and tests all of `cli/` and `tools/`.
+- `recon` runs a single content-discovery pass (gobuster) instead of gobuster
+  **and** ffuf over the same wordlist; ffuf stays available as the `jackhammer`
+  weapon.
 
 ### Performance
 - **`arsenal doctor`** runs its checks concurrently on a thread pool instead of
@@ -72,6 +75,9 @@ platform — the builder, the Fortress hardening baseline, the Armory, the
 - **`auditd` is now enabled** on the live image (it shipped installed but
   inert). AppArmor denials and kernel audit events are logged from boot, and
   `arsenal doctor` reports the daemon's state.
+- **Stronger `reportbug` redaction** — now also masks emails, credentials
+  embedded in URLs, PEM private-key blocks, and common token / AWS-key formats,
+  on top of the existing IP/MAC/secret redaction.
 
 ### Fixed
 - Build resilience: the post-strap package-DB sync now retries with backoff

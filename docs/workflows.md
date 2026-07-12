@@ -5,7 +5,7 @@ into an **engagement project**, and render a report.
 
 ## Commands
 ```bash
-arsenal recon <host|cidr|url>      # nmap -> gobuster/ffuf (needs a wordlist)
+arsenal recon <host|cidr|url>      # nmap -> gobuster content discovery (needs a wordlist)
 arsenal web   <url>                # nikto + sqlmap (+ Burp hand-off note)
 arsenal ad    <domain> --user U --password P [--dc-ip IP]
 ```

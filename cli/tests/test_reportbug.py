@@ -26,6 +26,28 @@ class TestRedaction(unittest.TestCase):
         text = "the quick brown fox"
         self.assertEqual(reportbug.redact(text), text)
 
+    def test_redact_email(self):
+        out = reportbug.redact("contact admin@corp.local for access")
+        self.assertIn("[EMAIL]", out)
+        self.assertNotIn("admin@corp.local", out)
+
+    def test_redact_url_credentials(self):
+        out = reportbug.redact("proxy https://bob:hunter2@proxy.local:8080/")
+        self.assertIn("://[REDACTED]@", out)
+        self.assertNotIn("hunter2", out)
+
+    def test_redact_private_key_block(self):
+        pem = ("-----BEGIN OPENSSH PRIVATE KEY-----\nAAAAsecretkeymaterial\n"
+               "-----END OPENSSH PRIVATE KEY-----")
+        out = reportbug.redact(f"key:\n{pem}\ndone")
+        self.assertIn("[PRIVATE KEY REDACTED]", out)
+        self.assertNotIn("secretkeymaterial", out)
+
+    def test_redact_token_and_aws_key(self):
+        out = reportbug.redact("token ghp_abcdefghijklmnopqrstuvwxyz012345 key AKIAIOSFODNN7EXAMPLE")
+        self.assertIn("[TOKEN]", out)
+        self.assertIn("[AWS_KEY]", out)
+
 
 class TestBundle(unittest.TestCase):
     def setUp(self):

@@ -29,11 +29,20 @@ _COMMANDS: dict[str, list[str]] = {
 }
 
 _REDACTIONS: list[tuple[re.Pattern, str]] = [
+    # PEM private-key blocks first, before other rules chew up their body.
+    (re.compile(r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----", re.S),
+     "[PRIVATE KEY REDACTED]"),
     (re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b"), "[IPV4]"),
     (re.compile(r"\b(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}\b"), "[MAC]"),
     (re.compile(r"\b(?:[0-9a-fA-F]{1,4}:){4,7}[0-9a-fA-F]{1,4}\b"), "[IPV6]"),
     (re.compile(r"(?i)\b(password|passwd|secret|token|api[_-]?key|bearer)\b\s*[=:]\s*\S+"),
      r"\1=[REDACTED]"),
+    # Credentials embedded in a URL: scheme://user:pass@host -> scheme://[REDACTED]@host
+    (re.compile(r"://[^/\s:@]+:[^/\s@]+@"), "://[REDACTED]@"),
+    (re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"), "[EMAIL]"),
+    (re.compile(r"\bAKIA[0-9A-Z]{16}\b"), "[AWS_KEY]"),
+    # Common bearer/token formats (OpenAI sk-, GitHub ghp_/gho_, Slack xox…).
+    (re.compile(r"\b(?:sk|pk|ghp|gho|ghs|xox[baprs])[-_][A-Za-z0-9]{16,}\b"), "[TOKEN]"),
 ]
 
 

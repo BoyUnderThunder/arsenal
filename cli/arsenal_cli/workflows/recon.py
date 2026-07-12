@@ -40,12 +40,11 @@ class ReconWorkflow(Workflow):
         ]
         wordlist = find_wordlist(self.wordlist)
         if wordlist:
+            # One content-discovery pass (gobuster). Running gobuster AND ffuf
+            # over the same wordlist was redundant; ffuf stays available as the
+            # `jackhammer` weapon for ad-hoc fuzzing.
             tasks.append(Task(
                 "gobuster", ["gobuster", "dir", "-q", "-u", url, "-w", wordlist, "-t", "40"],
-                timeout=900, optional=True,
-            ))
-            tasks.append(Task(
-                "ffuf", ["ffuf", "-s", "-u", f"{url}/FUZZ", "-w", wordlist],
                 timeout=900, optional=True,
             ))
         else:
