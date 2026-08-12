@@ -17,6 +17,9 @@ from ..log import get_logger
 
 log = get_logger(__name__)
 
+# Local Ollama endpoint — also the default when nothing is configured.
+OLLAMA_DEFAULT = "http://127.0.0.1:11434"
+
 
 class ProviderError(Exception):
     """Raised when an AI request fails."""
@@ -51,14 +54,17 @@ def http_json(url: str, payload: dict | None = None, headers: dict | None = None
 def get_provider(cfg, provider: str | None = None, model: str | None = None) -> Provider:
     name = (provider or cfg.get("ai", "provider", fallback="ollama")).lower()
     model = model or cfg.get("ai", "model", fallback="llama3")
-    base_url = cfg.get("ai", "base_url", fallback="http://127.0.0.1:11434")
+    base_url = cfg.get("ai", "base_url", fallback=OLLAMA_DEFAULT)
 
     if name in ("openai", "api", "openai-compat"):
         from .openai_compat import OpenAICompatProvider
 
         key_env = cfg.get("ai", "api_key_env", fallback="ARSENAL_AI_KEY")
-        # If base_url still points at the Ollama default, fall back to OpenAI's.
-        if "11434" in base_url:
+        # Only fall back to OpenAI's endpoint when base_url is still the exact
+        # Ollama default. A custom OpenAI-compatible gateway is respected even if
+        # it happens to run on :11434 (the old "11434 in base_url" check
+        # clobbered it).
+        if base_url == OLLAMA_DEFAULT:
             base_url = "https://api.openai.com"
         return OpenAICompatProvider(base_url, model, os.environ.get(key_env, ""))
 

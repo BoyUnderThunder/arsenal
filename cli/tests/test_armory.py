@@ -103,7 +103,7 @@ class TestArmory(unittest.TestCase):
     def test_query_no_match(self):
         rc, out = self._run(REGISTRY_SAMPLE, json=False, query="zzz")
         self.assertEqual(rc, 0)
-        self.assertIn("no weapons match 'zzz'", out)
+        self.assertIn("no weapons matching 'zzz'", out)
 
     def test_query_json_filters(self):
         rc, out = self._run(REGISTRY_SAMPLE, json=True, query="recon")
@@ -112,6 +112,35 @@ class TestArmory(unittest.TestCase):
         self.assertEqual(payload["count"], 1)
         self.assertEqual(payload["query"], "recon")
         self.assertEqual(payload["weapons"][0]["weapon"], "sniper")
+
+    # nmap installed, msfconsole not — used by the presence-filter tests.
+    @staticmethod
+    def _which_nmap_only(binary):
+        return "/usr/bin/nmap" if binary == "nmap" else None
+
+    def test_installed_filter_table(self):
+        with mock.patch.object(armory.runner, "which", side_effect=self._which_nmap_only):
+            rc, out = self._run(REGISTRY_SAMPLE, json=False, installed=True)
+        self.assertEqual(rc, 0)
+        self.assertIn("sniper", out)          # nmap installed -> kept
+        self.assertNotIn("msfconsole", out)   # bazooka missing -> dropped
+        self.assertIn("1 weapon installed", out)
+
+    def test_missing_filter_json(self):
+        with mock.patch.object(armory.runner, "which", side_effect=self._which_nmap_only):
+            rc, out = self._run(REGISTRY_SAMPLE, json=True, missing=True)
+        payload = json.loads(out)
+        self.assertEqual(payload["filter"], "missing")
+        self.assertEqual([w["weapon"] for w in payload["weapons"]], ["bazooka"])
+
+    def test_installed_plus_query_intersect(self):
+        # bazooka matches 'exploit' by category but is NOT installed -> excluded.
+        with mock.patch.object(armory.runner, "which", side_effect=self._which_nmap_only):
+            rc, out = self._run(REGISTRY_SAMPLE, json=True, query="exploit", installed=True)
+        payload = json.loads(out)
+        self.assertEqual(payload["count"], 0)
+        self.assertEqual(payload["query"], "exploit")
+        self.assertEqual(payload["filter"], "installed")
 
 
 if __name__ == "__main__":

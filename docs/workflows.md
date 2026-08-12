@@ -5,7 +5,7 @@ into an **engagement project**, and render a report.
 
 ## Commands
 ```bash
-arsenal recon <host|cidr|url>      # nmap -> gobuster/ffuf (needs a wordlist)
+arsenal recon <host|cidr|url>      # nmap -> gobuster content discovery (needs a wordlist)
 arsenal web   <url>                # nikto + sqlmap (+ Burp hand-off note)
 arsenal ad    <domain> --user U --password P [--dc-ip IP]
 ```
@@ -24,6 +24,19 @@ loot/  logs/     # for your artifacts
 report/          # report.md + report.html (auto-generated)
 ```
 Render anytime: `arsenal report ~/engagements/<dir>`.
+
+## Findings
+Beyond the step log, a workflow can emit structured **findings** — the unit that
+makes a report an *assessment*. A `Finding` has a `title`, `severity`
+(`critical` › `high` › `medium` › `low` › `info`), `target`, `evidence`, and
+optional `refs`. A task produces them with a `find=` callable:
+```python
+Task("nmap", ["nmap", "-sV", host], summarize=..., find=my_producer)
+# my_producer(res) -> list[Finding]
+```
+Findings are stored in `arsenal.json` and rendered as a severity-sorted
+**Findings** section (with counts) in both the Markdown and HTML reports. The
+`recon` workflow already turns nmap's open ports into `info` findings.
 
 ## Graceful behaviour
 - Missing tool → step **skipped** (not failed) with a note.

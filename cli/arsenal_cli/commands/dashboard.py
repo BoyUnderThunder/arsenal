@@ -16,7 +16,7 @@ from pathlib import Path
 from .. import config, runner, ui
 from ..report.render import _CSS
 from ..version import os_version
-from . import doctor
+from . import armory, doctor
 
 NAME = "dashboard"
 HELP = "open the Arsenal status dashboard (HTML/XFCE, or --tui)"
@@ -32,17 +32,12 @@ def add_arguments(parser) -> None:
 
 
 def _weapons() -> tuple[int, int]:
-    reg = config.REGISTRY
-    installed = total = 0
-    if reg.is_file():
-        for raw in reg.read_text().splitlines():
-            s = raw.strip()
-            if not s or s.startswith("#") or "|" not in s:
-                continue
-            total += 1
-            if runner.which(s.split("|")[1].strip()):
-                installed += 1
-    return installed, total
+    # Reuse the armory's canonical parser + install detection so the dashboard's
+    # count can never drift from `arsenal armory`.
+    if not config.REGISTRY.is_file():
+        return 0, 0
+    rows = armory._inventory()
+    return sum(1 for r in rows if r["installed"]), len(rows)
 
 
 def _recent(limit: int = 8) -> list[dict]:

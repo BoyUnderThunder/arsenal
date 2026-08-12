@@ -7,7 +7,7 @@ from pathlib import Path
 
 from arsenal_cli import ui
 from arsenal_cli.commands import report as report_cmd
-from arsenal_cli.project import Project, Step
+from arsenal_cli.project import Finding, Project, Step
 from arsenal_cli.report import render_html, render_markdown, render_pdf
 
 
@@ -43,6 +43,55 @@ class TestRenderers(unittest.TestCase):
             self.assertTrue(Path(msg).exists())
         else:
             self.assertIn("WeasyPrint", msg)
+
+    def test_findings_render_markdown_sorted_with_counts(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = _sample(Path(td))
+            p.add_finding(Finding("Info thing", severity="info", target="a"))
+            p.add_finding(Finding("Critical RCE", severity="critical", target="b",
+                                  refs=["CVE-2021-1"]))
+            md = render_markdown(p)
+        self.assertIn("## Findings", md)
+        self.assertIn("2 finding(s)", md)
+        self.assertIn("1 critical", md)
+        # critical row must appear before the info row (most-severe first)
+        self.assertLess(md.index("Critical RCE"), md.index("Info thing"))
+        self.assertIn("CVE-2021-1", md)
+
+    def test_findings_render_html_with_severity_class_and_escaped(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = _sample(Path(td))
+            p.add_finding(Finding("XSS <script>", severity="high", target="c"))
+            html = render_html(p)
+        self.assertIn("<h2>Findings</h2>", html)
+        self.assertIn("sev-high", html)
+        self.assertIn("&lt;script&gt;", html)  # finding title escaped
+        self.assertNotIn("<script>", html)
+
+    def test_no_findings_section_when_empty(self):
+        with tempfile.TemporaryDirectory() as td:
+            md = render_markdown(_sample(Path(td)))
+        self.assertNotIn("## Findings", md)
+
+    def test_scan_output_embedded_and_truncated(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Project.create("emb", kind="recon", base=Path(td))
+            scan = p.scans_dir() / "nmap.txt"
+            scan.write_text("22/tcp open ssh\n" + "\n".join(f"line{i}" for i in range(100)))
+            p.add_step(Step(name="nmap", status="ok", summary="ok", output_file=str(scan)))
+            md = render_markdown(p)
+            html = render_html(p)
+        self.assertIn("22/tcp open ssh", md)   # actual output embedded, not just a path
+        self.assertIn("truncated", md)          # long file was truncated
+        self.assertIn("<details>", html)
+        self.assertIn("22/tcp open ssh", html)
+
+    def test_missing_scan_file_is_tolerated(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Project.create("emb", base=Path(td))
+            p.add_step(Step(name="x", status="ok", output_file="/no/such/file.txt"))
+            md = render_markdown(p)  # must not raise on an unreadable output file
+        self.assertIn("x", md)
 
     def test_markdown_cells_stay_single_line(self):
         with tempfile.TemporaryDirectory() as td:

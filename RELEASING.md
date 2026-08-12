@@ -85,10 +85,20 @@ provenance file, plus the lockfile and SBOM as release assets.
 
 **Signing** is wired into `release.yml` but inert until a project key is
 configured. To activate it:
-1. Add repository secrets `GPG_PRIVATE_KEY` (an ASCII-armored private key) and
-   `GPG_PASSPHRASE`.
-2. Publish the corresponding **public** key (in the repo and/or release notes)
-   so downloaders can import it for verification.
+1. **Generate the signing key on a trusted machine — never in CI.** The private
+   key is a trust anchor; an ephemeral cloud runner is the wrong place to mint or
+   hold it. For example:
+   ```bash
+   gpg --quick-generate-key "Arsenal Signing Key <security@arsenal.example>" ed25519 sign 2y
+   KEYID=$(gpg --list-keys --with-colons security@arsenal.example | awk -F: '/^pub/{print $5; exit}')
+   gpg --armor --export-secret-keys "$KEYID"          # paste into the GPG_PRIVATE_KEY secret
+   gpg --armor --export "$KEYID" > arsenal-signing-key.asc   # commit this PUBLIC key
+   gpg --fingerprint "$KEYID"                          # publish the fingerprint in SECURITY.md
+   ```
+2. Add repository secrets `GPG_PRIVATE_KEY` (the ASCII-armored **private** key
+   from above) and `GPG_PASSPHRASE`.
+3. Commit the **public** key (`arsenal-signing-key.asc`) and record its
+   fingerprint in `SECURITY.md` so downloaders can import and trust it.
 
 With the secret present, every release gains a detached, armored
 `SHA256SUMS.asc` (and `<iso>.sha256.asc`); without it, releases publish unsigned

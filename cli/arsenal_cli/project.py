@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import datetime
 import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 
 from .config import ENGAGEMENTS_DIR
@@ -17,6 +17,27 @@ from .version import os_version
 
 ISO_FMT = "%Y-%m-%dT%H:%M:%S"
 SUBDIRS = ("scans", "loot", "logs", "report")
+SCHEMA = 1  # arsenal.json schema version; bump on a breaking model change
+
+
+def _only(dc, d: dict) -> dict:
+    """Keep only keys that are fields of dataclass ``dc``.
+
+    Makes :meth:`Project.load` tolerant of both older files (missing keys use
+    defaults) and newer ones (unknown keys are ignored instead of raising), so
+    a project written by a different Arsenal version still opens.
+    """
+    keep = {f.name for f in fields(dc)}
+    return {k: v for k, v in d.items() if k in keep}
+
+# Severity levels, most- to least-severe (also the report display order).
+SEVERITIES = ("critical", "high", "medium", "low", "info")
+_SEV_RANK = {s: i for i, s in enumerate(SEVERITIES)}
+
+
+def severity_rank(sev: str) -> int:
+    """Sort key for a severity string; unknown severities sort last."""
+    return _SEV_RANK.get(str(sev).lower(), len(SEVERITIES))
 
 
 def _now() -> str:
@@ -43,14 +64,28 @@ class Step:
 
 
 @dataclass
+class Finding:
+    """A security finding surfaced by a workflow tool — the unit that turns a
+    report from a step-list into an assessment."""
+
+    title: str
+    severity: str = "info"  # critical | high | medium | low | info
+    target: str = ""
+    evidence: str = ""
+    refs: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Project:
     name: str
     kind: str = "manual"  # recon | web | ad | manual
     target: str = ""
     created: str = ""
     arsenal_version: str = ""
+    schema: int = SCHEMA
     summary: str = ""  # free text / AI-generated summary (Phase 7)
     steps: list[Step] = field(default_factory=list)
+    findings: list[Finding] = field(default_factory=list)
     path: Path | None = None  # runtime-only, not serialized
 
     # --- lifecycle -----------------------------------------------------------
@@ -76,15 +111,21 @@ class Project:
     def load(cls, path) -> Project:
         path = Path(path)
         data = json.loads((path / "arsenal.json").read_text())
-        steps = [Step(**s) for s in data.pop("steps", [])]
+        steps = [Step(**_only(Step, s)) for s in data.pop("steps", [])]
+        findings = [Finding(**_only(Finding, f)) for f in data.pop("findings", [])]
         data.pop("path", None)
-        return cls(steps=steps, path=path, **data)
+        return cls(steps=steps, findings=findings, path=path, **_only(cls, data))
 
     # --- mutation ------------------------------------------------------------
     def add_step(self, step: Step) -> Step:
         self.steps.append(step)
         self.save()
         return step
+
+    def add_finding(self, finding: Finding) -> Finding:
+        self.findings.append(finding)
+        self.save()
+        return finding
 
     def save(self) -> None:
         if not self.path:
@@ -98,8 +139,30 @@ class Project:
         assert self.path is not None
         return self.path / "scans"
 
+    def loot_dir(self) -> Path:
+        """Directory for captured artifacts (hashes, dumps, downloads)."""
+        assert self.path is not None
+        return self.path / "loot"
+
+    def logs_dir(self) -> Path:
+        """Directory for run logs beyond per-step scan output."""
+        assert self.path is not None
+        return self.path / "logs"
+
     def counts(self) -> dict[str, int]:
         out = {"ok": 0, "fail": 0, "skipped": 0, "pending": 0}
         for s in self.steps:
             out[s.status] = out.get(s.status, 0) + 1
         return out
+
+    def finding_counts(self) -> dict[str, int]:
+        """Findings tallied by severity (every level present, 0 by default)."""
+        out = dict.fromkeys(SEVERITIES, 0)
+        for f in self.findings:
+            key = str(f.severity).lower()
+            out[key] = out.get(key, 0) + 1
+        return out
+
+    def findings_sorted(self) -> list[Finding]:
+        """Findings ordered most-severe first (stable within a severity)."""
+        return sorted(self.findings, key=lambda f: severity_rank(f.severity))

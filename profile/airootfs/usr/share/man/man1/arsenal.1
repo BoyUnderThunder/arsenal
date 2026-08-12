@@ -35,11 +35,15 @@ Disable coloured output (also honoured via
 Verbose logging to stderr.
 .SH COMMANDS
 .TP
-.B armory " [\fIQUERY\fR] [\-\-json]"
+.B armory " [\fIQUERY\fR] [\-\-installed|\-\-missing] [\-\-json]"
 List the weapon registry (weapon \(-> tool \(-> category \(-> description).
 A filled dot (\(bu) marks tools present on the image. An optional
 .I QUERY
 filters by name, tool, category, or description (case-insensitive);
+.B \-\-installed
+and
+.B \-\-missing
+filter by whether the tool is present on this image;
 .B \-\-json
 emits a machine-readable inventory. This is the default when no command is given.
 .TP
@@ -67,6 +71,12 @@ Sensitive data is redacted by default.
 .B report
 Generate or manage engagement reports from recorded workflow runs.
 .TP
+.B engagements " [list|show|rerun|delete|archive] [\fIDIR\fR]"
+Manage recorded engagement projects under
+.IR ~/engagements :
+list them, show one, re-run its workflow (with the authorization prompt),
+archive it to a tarball, or delete it.
+.TP
 .B recon " \fITARGET\fR"
 Recon workflow: port/service scan plus web content discovery against an
 authorized target.
@@ -82,9 +92,12 @@ against authorized hosts.
 .B profile
 Manage package/tooling profiles (e.g. full vs. lean toolkits).
 .TP
-.B ai " [\fIPROMPT\fR ...]"
+.B ai " [\fIPROMPT\fR ...] [\-\-tool T] [\-\-log F] [\-\-summarize \fIPROJECT\fR]"
 Ask the built-in AI assistant (optional; degrades gracefully when no provider
 is configured).
+.B \-\-summarize
+writes an executive summary into an engagement project (regenerate its report
+to include it).
 .TP
 .B dashboard
 Show a consolidated status dashboard for the live system.

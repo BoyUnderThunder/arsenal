@@ -15,6 +15,7 @@ from .commands import (
     armory,
     dashboard,
     doctor,
+    engagements,
     profile,
     report,
     reportbug,
@@ -28,6 +29,7 @@ _COMMANDS = {
     "doctor": (doctor.run, "system health & security diagnostics"),
     "reportbug": (reportbug.run, "create a redacted support bundle"),
     "report": (report.run, report.HELP),
+    "engagements": (engagements.run, engagements.HELP),
     "recon": (workflow.recon, "recon workflow: nmap + web content discovery"),
     "web": (workflow.web, "web workflow: nikto + sqlmap (+ Burp hand-off)"),
     "ad": (workflow.ad, "Active Directory workflow: netexec + bloodhound + impacket"),
@@ -51,6 +53,9 @@ def build_parser() -> argparse.ArgumentParser:
     ar = sub.add_parser("armory", help=_COMMANDS["armory"][1])
     ar.add_argument("--json", action="store_true", help="machine-readable JSON inventory")
     ar.add_argument("query", nargs="?", help="filter weapons by name/tool/category/description")
+    ar_presence = ar.add_mutually_exclusive_group()
+    ar_presence.add_argument("--installed", action="store_true", help="only weapons whose tool is on this image")
+    ar_presence.add_argument("--missing", action="store_true", help="only weapons whose tool is not installed")
     dr = sub.add_parser("doctor", help=_COMMANDS["doctor"][1])
     dr.add_argument("--json", action="store_true", help="machine-readable JSON output")
     rb = sub.add_parser("reportbug", help=_COMMANDS["reportbug"][1])
@@ -58,6 +63,7 @@ def build_parser() -> argparse.ArgumentParser:
     rb.add_argument("-o", "--output", help="output path for the bundle")
     rp = sub.add_parser("report", help=report.HELP)
     report.add_arguments(rp)
+    engagements.add_arguments(sub.add_parser("engagements", help=engagements.HELP))
     workflow.add_recon_args(sub.add_parser("recon", help=_COMMANDS["recon"][1]))
     workflow.add_web_args(sub.add_parser("web", help=_COMMANDS["web"][1]))
     workflow.add_ad_args(sub.add_parser("ad", help=_COMMANDS["ad"][1]))

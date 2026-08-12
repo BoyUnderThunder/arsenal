@@ -145,6 +145,21 @@ class TestDoctorChecks(unittest.TestCase):
         self.assertEqual(c.status, ui.Status.INFO)
         self.assertIn("unavailable", c.detail)
 
+    def test_auditd_active_is_ok(self):
+        with mock.patch.object(doctor.runner, "run", return_value=_result("active\n")):
+            self.assertEqual(doctor.check_auditd().status, ui.Status.OK)
+
+    def test_auditd_inactive_warns(self):
+        with mock.patch.object(doctor.runner, "run", return_value=_result("inactive\n", rc=3)):
+            c = doctor.check_auditd()
+        self.assertEqual(c.status, ui.Status.WARN)
+        self.assertIn("inactive", c.detail)
+
+    def test_auditd_unavailable_is_info(self):
+        missing = runner.Result(["x"], 127, "", "", False, missing=True)
+        with mock.patch.object(doctor.runner, "run", return_value=missing):
+            self.assertEqual(doctor.check_auditd().status, ui.Status.INFO)
+
     def test_updates_available(self):
         with mock.patch.object(doctor.runner, "which", return_value="/usr/bin/checkupdates"):
             with mock.patch.object(doctor.runner, "run", return_value=_result("pkg1 1->2\npkg2 3->4\n")):

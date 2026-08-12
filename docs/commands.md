@@ -4,11 +4,13 @@
 `--version`. With no command, prints the armory. Logs: `/var/log/arsenal/arsenal.log`.
 Bash tab-completion for subcommands and options ships on the live image.
 
-## `armory [QUERY] [--json]` (default)
+## `armory [QUERY] [--installed|--missing] [--json]` (default)
 Print the weapon registry (weapon → tool → category → description) with `●`/`○`
 showing installed tools. See [weapon framework](weapon-framework.md).
 - `QUERY` — filter to weapons whose name/tool/category/description contains the
   term (case-insensitive), e.g. `arsenal armory web`.
+- `--installed` / `--missing` — filter by whether the tool is present on this
+  image (combines with `QUERY`).
 - `--json` — machine-readable inventory (`{weapons[], count}`, each weapon with
   `installed`) for scripting and dashboards.
 
@@ -17,7 +19,8 @@ System health & security diagnostics. Colour-coded `[✓]/[!]/[✗]/[i]`; exit c
 is non-zero only on a failed check. Checks: hardened kernel, AppArmor, nftables
 (default-deny), kernel-hardening sysctls, module blacklist, AppArmor enforce
 mode, BlackArch repo, internet, network exposure (listening services), disk,
-memory, version, pending updates, package integrity, critical services.
+memory, version, pending updates, package integrity, critical services, audit
+daemon.
 - `--json` — machine-readable output (`{checks[], summary, ok}`) for monitoring
   or scripting; same exit code as the human view.
 
@@ -32,8 +35,10 @@ Collect a compressed support bundle (journalctl, dmesg, hardware, packages,
 services, version). Sensitive data redacted by default. See
 [troubleshooting](troubleshooting.md).
 
-## `ai [PROMPT…] [--tool T] [--log FILE] [--provider P] [--model M]`
-Ask the AI assistant. See [AI assistant](ai.md).
+## `ai [PROMPT…] [--tool T] [--log FILE] [--summarize PROJECT] [--provider P] [--model M]`
+Ask the AI assistant. `--summarize <project>` writes an executive summary into an
+engagement (from its redacted findings/steps — never raw scan output); regenerate
+the report to include it. See [AI assistant](ai.md).
 
 ## `recon|web|ad <target> [-y] [--dry-run] [--name N] [-o DIR]`
 Run a multi-tool workflow into an engagement project. Active testing requires an
@@ -43,6 +48,11 @@ authorization confirmation (or `-y`). See [workflows](workflows.md).
 ## `report <project> [-f md|html|pdf|all] [-o DIR]`
 Render an engagement project (`arsenal.json`) to Markdown / HTML / PDF (PDF via
 WeasyPrint if installed).
+
+## `engagements [list|show|rerun|delete|archive] [DIR] [-y] [-o OUT]`
+Manage recorded engagement projects under `~/engagements`: `list` (default) all
+of them, `show` one, `rerun` its workflow (with the authorization prompt),
+`archive` it to a tarball, or `delete` it. See [workflows](workflows.md).
 
 ## `profile [<name>|list] [--show] [-y]`
 Install a curated toolset: `red`, `blue`, `forensics`, `reverse`. `list` shows

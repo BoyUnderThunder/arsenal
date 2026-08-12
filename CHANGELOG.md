@@ -12,6 +12,15 @@ platform — the builder, the Fortress hardening baseline, the Armory, the
 ## [Unreleased]
 
 ### Added
+- **`LICENSE` (GNU GPL-3.0)** at the repository root, a README license section,
+  and signing-key **generation** instructions in `RELEASING.md` (the key is
+  minted by the owner on a trusted machine, never in CI).
+- **Findings/severity model in engagement reports.** Workflows can now surface
+  structured `Finding`s (title, severity critical→info, target, evidence, refs)
+  alongside the step log; reports render a severity-sorted **Findings** section
+  with counts in both Markdown and HTML, and the recon workflow turns nmap's
+  open ports into findings. Persisted in `arsenal.json` (old projects still
+  load). Turns a report from a step-list into an assessment.
 - **Supply-chain provenance.** Every build emits a lockfile plus
   [CycloneDX](https://cyclonedx.org/) 1.5 and [SPDX](https://spdx.dev/) 2.3
   SBOMs (`tools/gen_sbom.py`) generated from the built image's own pacman
@@ -30,8 +39,11 @@ platform — the builder, the Fortress hardening baseline, the Armory, the
   blacklisted-module load detection, AppArmor-enforced-profile count, and a
   network-exposure check (services listening beyond loopback) — plus
   `arsenal doctor --json` for machine-readable output.
-- **`arsenal armory`** — `--json` machine-readable inventory and a positional
-  query that filters weapons by name/tool/category/description.
+- **`arsenal armory`** — `--json` machine-readable inventory, a positional
+  query that filters weapons by name/tool/category/description, and
+  `--installed` / `--missing` to filter by whether the tool is on the image.
+  The table and `--json` now render from one shared inventory (which the
+  dashboard's weapon count reuses too), so the views can't drift.
 - **Seven Armory weapons** — `howitzer` (masscan) and `prospector` (binwalk),
   plus `dissector` (radare2), `smith` (john), `vivisector` (gdb), `wiretap`
   (tcpdump) and `ghost` (proxychains) surfacing tools already in the image.
@@ -47,6 +59,12 @@ platform — the builder, the Fortress hardening baseline, the Armory, the
 ### Changed
 - CI runs a hardening self-test / integration gate on each build; `ci-test`
   lints and tests all of `cli/` and `tools/`.
+- `recon` runs a single content-discovery pass (gobuster) instead of gobuster
+  **and** ffuf over the same wordlist; ffuf stays available as the `jackhammer`
+  weapon.
+- Test coverage for previously-untested modules (`log`, `version`, `config`, and
+  the workflow command/authorization layer); removed the stale hardcoded
+  `run_id` defaults from the manual boot-test / integration-test workflows.
 
 ### Performance
 - **`arsenal doctor`** runs its checks concurrently on a thread pool instead of
@@ -58,6 +76,14 @@ platform — the builder, the Fortress hardening baseline, the Armory, the
   instead of releng's xz: several times faster to compress (shorter builds) and
   much faster to decompress (snappier live boot), at a near-identical size and
   still deterministic. Set `ARSENAL_SQUASHFS_COMP=off` to keep xz.
+
+### Security
+- **`auditd` is now enabled** on the live image (it shipped installed but
+  inert). AppArmor denials and kernel audit events are logged from boot, and
+  `arsenal doctor` reports the daemon's state.
+- **Stronger `reportbug` redaction** — now also masks emails, credentials
+  embedded in URLs, PEM private-key blocks, and common token / AWS-key formats,
+  on top of the existing IP/MAC/secret redaction.
 
 ### Fixed
 - Build resilience: the post-strap package-DB sync now retries with backoff
