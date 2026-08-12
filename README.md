@@ -196,3 +196,11 @@ Names are resolved at build time against `[core]`, `[extra]`, and
 on that exact line — read the error, fix the name in `profile/packages.x86_64`,
 and rebuild. That tight error→fix→rebuild loop is expected and normal for a
 BlackArch-based image.
+
+## License
+
+Arsenal is licensed under the **GNU General Public License v3.0** — see
+[`LICENSE`](LICENSE). This fits a security distribution that integrates
+GPL-licensed tooling; bundled third-party tools and packages retain their own
+upstream licenses. (Project owner: adjust the license here if you prefer a
+different one.)

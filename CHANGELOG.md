@@ -12,6 +12,9 @@ platform — the builder, the Fortress hardening baseline, the Armory, the
 ## [Unreleased]
 
 ### Added
+- **`LICENSE` (GNU GPL-3.0)** at the repository root, a README license section,
+  and signing-key **generation** instructions in `RELEASING.md` (the key is
+  minted by the owner on a trusted machine, never in CI).
 - **Findings/severity model in engagement reports.** Workflows can now surface
   structured `Finding`s (title, severity critical→info, target, evidence, refs)
   alongside the step log; reports render a severity-sorted **Findings** section
