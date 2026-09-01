@@ -143,6 +143,16 @@ if [[ "${FLAVOR}" == "lean" ]]; then
     done < "${OVERLAY}/packages.lean.drop"
 fi
 
+# Prune packages the upstream releng base still lists but the Arch repos have
+# since dropped (rolling-repo drift) — without this, the pre-build resolver
+# (section 8) aborts on a name nobody in this repo chose. Keep the list tight:
+# only genuinely-removed packages, each with the date/reason it was dropped.
+#   broadcom-wl — removed from [extra]; the prebuilt module is gone (use
+#                 broadcom-wl-dkms out-of-band if that hardware is needed).
+for stale in broadcom-wl; do
+    sed -i "\#^${stale}\$#d" "${PROFILE}/packages.x86_64"
+done
+
 # -----------------------------------------------------------------------------
 # 4. Switch to the linux-hardened kernel
 # -----------------------------------------------------------------------------
