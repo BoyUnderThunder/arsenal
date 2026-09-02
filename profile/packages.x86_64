@@ -100,6 +100,11 @@ man-db
 bash-completion
 terminus-font
 
+# ---- Secret Agent: operator OPSEC (arsenal secret-agent) -------------------
+tor              # transparent-proxy "go dark" routing
+torsocks         # per-app Tor wrapping
+macchanger       # MAC randomization / cloak identity
+
 # ---- Arsenal platform CLI support ------------------------------------------
 pacman-contrib   # checkupdates (arsenal doctor)
 inxi             # hardware summary (arsenal reportbug)

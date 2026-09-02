@@ -77,6 +77,15 @@ Manage recorded engagement projects under
 list them, show one, re-run its workflow (with the authorization prompt),
 archive it to a tarball, or delete it.
 .TP
+.B secret-agent " [on|off|status] [\-\-cloak] [\-\-no\-trace] [\-\-tor] [\-\-disguise]"
+Operator OPSEC ("go covert") mode: randomize interface MACs and spoof the
+hostname/clock (\fBcloak\fR), disable swap and shell history and clear logs
+(\fBno\-trace\fR), route all traffic through Tor with an nftables kill\-switch
+(\fBtor\fR), and disguise the desktop (\fBdisguise\fR). The \fBoff\fR action
+restores the Fortress defaults and \fBstatus\fR shows what is active;
+\fBon\fR/\fBoff\fR require root. Protects the operator during authorized work
+\(em not the systems under test.
+.TP
 .B recon " \fITARGET\fR"
 Recon workflow: port/service scan plus web content discovery against an
 authorized target.
