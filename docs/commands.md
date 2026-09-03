@@ -54,6 +54,15 @@ Manage recorded engagement projects under `~/engagements`: `list` (default) all
 of them, `show` one, `rerun` its workflow (with the authorization prompt),
 `archive` it to a tarball, or `delete` it. See [workflows](workflows.md).
 
+## `secret-agent [on|off|status] [--cloak] [--no-trace] [--tor] [--disguise] [-y]`
+Operator OPSEC ("go covert") mode — protects **you** during authorized work, not
+the systems under test. `on` enables all four capabilities (or only the ones you
+flag): **cloak** (randomize interface MACs, clock→UTC, spoof hostname),
+**no-trace** (disable swap, shell history off, clear logs), **tor** (route
+everything through Tor with an nftables kill-switch — clearnet/DNS/IPv6 leaks
+blocked), and **disguise** (generic desktop look). `off` restores the Fortress
+defaults; `status` shows what's active. `on`/`off` require root.
+
 ## `profile [<name>|list] [--show] [-y]`
 Install a curated toolset: `red`, `blue`, `forensics`, `reverse`. `list` shows
 profiles; `--show` lists packages without installing. Install requires root.

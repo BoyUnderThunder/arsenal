@@ -12,6 +12,14 @@ platform — the builder, the Fortress hardening baseline, the Armory, the
 ## [Unreleased]
 
 ### Added
+- **`arsenal secret-agent` — operator OPSEC / "go covert" mode.** Bundles four
+  privacy capabilities that protect the operator (not the systems under test):
+  **cloak** (randomize interface MACs, clock→UTC, spoof hostname), **no-trace**
+  (disable swap, shell history off, clear logs), **tor** (route everything
+  through Tor with an nftables kill-switch — no clearnet/DNS/IPv6 leaks), and
+  **disguise** (generic desktop). `off` restores the Fortress defaults exactly
+  (the pre-Tor firewall is snapshotted); `status` shows what's active. Adds the
+  `tor`, `torsocks`, and `macchanger` packages.
 - **`LICENSE` (GNU GPL-3.0)** at the repository root, a README license section,
   and signing-key **generation** instructions in `RELEASING.md` (the key is
   minted by the owner on a trusted machine, never in CI).

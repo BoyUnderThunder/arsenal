@@ -19,6 +19,7 @@ from .commands import (
     profile,
     report,
     reportbug,
+    secret_agent,
     update,
     workflow,
 )
@@ -30,6 +31,7 @@ _COMMANDS = {
     "reportbug": (reportbug.run, "create a redacted support bundle"),
     "report": (report.run, report.HELP),
     "engagements": (engagements.run, engagements.HELP),
+    "secret-agent": (secret_agent.run, secret_agent.HELP),
     "recon": (workflow.recon, "recon workflow: nmap + web content discovery"),
     "web": (workflow.web, "web workflow: nikto + sqlmap (+ Burp hand-off)"),
     "ad": (workflow.ad, "Active Directory workflow: netexec + bloodhound + impacket"),
@@ -64,6 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
     rp = sub.add_parser("report", help=report.HELP)
     report.add_arguments(rp)
     engagements.add_arguments(sub.add_parser("engagements", help=engagements.HELP))
+    secret_agent.add_arguments(sub.add_parser("secret-agent", help=secret_agent.HELP))
     workflow.add_recon_args(sub.add_parser("recon", help=_COMMANDS["recon"][1]))
     workflow.add_web_args(sub.add_parser("web", help=_COMMANDS["web"][1]))
     workflow.add_ad_args(sub.add_parser("ad", help=_COMMANDS["ad"][1]))
